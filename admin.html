@@ -4,119 +4,78 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>人事後台管理系統</title>
+    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 FontAwesome 圖標 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
 </head>
-<body class="bg-gray-50 font-sans h-screen flex flex-col md:flex-row overflow-hidden">
+<body class="bg-gray-100 font-sans h-screen flex flex-col overflow-hidden">
 
-    <div class="bg-slate-900 text-white px-4 py-3 flex items-center justify-between md:hidden shrink-0 shadow-md">
+    <!-- 頂部功能切換列 -->
+    <div class="bg-slate-900 text-white px-4 py-3 flex items-center justify-between shrink-0 shadow-md">
         <div class="flex items-center space-x-2">
-            <i class="fa-solid fa-gears text-indigo-400 text-lg"></i>
+            <i class="fa-solid fa-gears text-indigo-400 text-base"></i>
             <span class="font-bold tracking-wide text-sm">人事後台</span>
         </div>
-        <div class="flex space-x-2">
-            <button onclick="switchTab('approval')" id="mbn-approval" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-bold transition">
+        <div class="flex space-x-1.5">
+            <button onclick="switchTab('approval')" id="mbn-approval" class="px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold transition">
                 待審核 <span id="mbadge-count" class="bg-red-500 text-white px-1.5 py-0.2 rounded-full hidden text-[10px]">0</span>
             </button>
-            <button onclick="switchTab('records')" id="mbn-records" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 text-xs font-medium transition">
+            <button onclick="switchTab('records')" id="mbn-records" class="px-3 py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-medium transition">
                 出勤報表
             </button>
         </div>
     </div>
 
-    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between shrink-0 hidden md:flex">
-        <div>
-            <div class="p-5 bg-slate-950 flex items-center space-x-3 text-white">
-                <i class="fa-solid fa-gears text-indigo-400 text-xl"></i>
-                <span class="font-bold text-lg tracking-wide">人事管理後台</span>
-            </div>
-            <div class="p-4 bg-slate-800/50 border-b border-slate-800 flex items-center space-x-3">
-                <div class="w-9 h-9 bg-emerald-600 rounded-full flex items-center justify-center text-white font-bold text-sm">美</div>
-                <div>
-                    <p class="text-sm font-bold text-white">李四美 (HR)</p>
-                    <p class="text-xs text-slate-400">系統管理員</p>
+    <!-- 標題數據列 -->
+    <header class="bg-white border-b border-gray-200 py-3 px-4 flex items-center justify-between shrink-0">
+        <h1 class="font-black text-gray-800 text-base" id="current-title">待審核表單中心</h1>
+        <span class="text-[11px] text-gray-400 font-mono" id="live-time">2026-06-13 00:00:00</span>
+    </header>
+
+    <!-- 主內容滾動區 -->
+    <main class="flex-1 overflow-y-auto p-4 pb-12">
+        
+        <!-- 頁面 A：待審核表單 (徹底揚棄傳統表格，100% 採用響應式卡片) -->
+        <section id="tab-approval" class="space-y-3">
+            <div id="approval-list-container-mobile" class="space-y-3">
+                <div class="text-center text-gray-400 py-12 bg-white rounded-2xl border border-gray-200">
+                    <i class="fa-solid fa-spinner fa-spin mr-2"></i>正在從雲端拉取申請單...
                 </div>
             </div>
-            <nav class="p-3 space-y-1">
-                <button onclick="switchTab('approval')" id="btn-approval" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm transition">
-                    <i class="fa-solid fa-clipboard-check text-base w-5"></i>
-                    <span>待審核表單</span>
-                    <span class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full hidden" id="badge-count">0</span>
-                </button>
-                <button onclick="switchTab('records')" id="btn-records" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-slate-200 font-medium text-sm transition">
-                    <i class="fa-solid fa-calendar-days text-base w-5"></i>
-                    <span>出缺勤報表</span>
-                </button>
-            </nav>
-        </div>
-    </aside>
+        </section>
 
-    <main class="flex-1 flex flex-col overflow-hidden">
-        <header class="h-14 md:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 shrink-0">
-            <h1 class="font-bold text-gray-800 text-base md:text-lg" id="current-title">待審核表單中心</h1>
-            <span class="text-xs md:text-sm text-gray-500 font-mono" id="live-time">2026-06-12 00:00:00</span>
-        </header>
-
-        <div class="p-3 md:p-6 flex-1 overflow-y-auto">
+        <!-- 頁面 B：出勤報表 -->
+        <section id="tab-records" class="hidden space-y-3">
+            <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+                <button onclick="loadAttendanceReports()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm transition">
+                    <i class="fa-solid fa-magnifying-glass mr-1"></i>更新 / 載入出勤日誌
+                </button>
+            </div>
             
-            <section id="tab-approval" class="space-y-4">
-                <div class="hidden md:block bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                    <table class="w-full text-left border-collapse text-sm">
-                        <thead class="bg-gray-50 text-gray-600 font-bold border-b border-gray-200">
+            <!-- 報表支援橫向滑動，防止欄位擠壓 -->
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto w-full">
+                    <table class="w-full text-left border-collapse text-xs min-w-[500px]">
+                        <thead class="bg-gray-50 text-gray-500 font-bold border-b border-gray-200">
                             <tr>
-                                <th class="p-4">申請人</th>
-                                <th class="p-4">表單類型</th>
-                                <th class="p-4">詳細時間與時數</th>
-                                <th class="p-4">事由 / 備註</th>
-                                <th class="p-4 text-center">操作</th>
+                                <th class="p-3">姓名</th>
+                                <th class="p-3">日期</th>
+                                <th class="p-3">時間</th>
+                                <th class="p-3">類型</th>
+                                <th class="p-3">備註</th>
                             </tr>
                         </thead>
-                        <tbody id="approval-list-tbody-desktop" class="divide-y divide-gray-100 text-gray-700">
-                            <tr>
-                                <td colspan="5" class="p-8 text-center text-gray-400">
-                                    <i class="fa-solid fa-spinner fa-spin mr-2"></i>正在等待本地設定檔加載...
-                                </td>
-                            </tr>
+                        <tbody id="report-list-tbody" class="divide-y divide-gray-100 text-gray-700">
+                            <tr><td colspan="5" class="p-4 text-center text-gray-400">尚未載入出勤數據。</td></tr>
                         </tbody>
                     </table>
                 </div>
-
-                <div id="approval-list-container-mobile" class="block md:hidden space-y-3">
-                    <div class="text-center text-gray-400 py-8 bg-white rounded-xl border">
-                        <i class="fa-solid fa-spinner fa-spin mr-2"></i>正在載入資料...
-                    </div>
-                </div>
-            </section>
-
-            <section id="tab-records" class="hidden space-y-4">
-                <div class="bg-white p-3 md:p-4 rounded-xl border border-gray-200 shadow-sm flex items-center">
-                    <button onclick="loadAttendanceReports()" class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-xl text-sm shadow-sm transition">
-                        <i class="fa-solid fa-magnifying-glass mr-1"></i>重新整理報表
-                    </button>
-                </div>
-                
-                <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-sm min-w-[600px]">
-                            <thead class="bg-gray-50 text-gray-600 font-bold border-b border-gray-200">
-                                <tr>
-                                    <th class="p-4">姓名/工號</th>
-                                    <th class="p-4">日期</th>
-                                    <th class="p-4">打卡時間</th>
-                                    <th class="p-4">打卡類型</th>
-                                    <th class="p-4">備註</th>
-                                </tr>
-                            </thead>
-                            <tbody id="report-list-tbody" class="divide-y divide-gray-100 text-gray-700">
-                                <tr><td colspan="5" class="p-4 text-center text-gray-400">點擊上方按鈕載入出勤日誌</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-        </div>
+            </div>
+        </section>
     </main>
 
+    <!-- JavaScript 邏輯區 -->
     <script>
         // --- 1. 全域變數宣告 ---
         let GAS_WEB_APP_URL = "";
@@ -139,118 +98,110 @@
                 })
                 .catch(error => {
                     console.error("後台初始化失敗:", error);
-                    const errMsg = `<tr><td colspan="5" class="p-4 text-center text-red-500 font-bold">⚠️ 錯誤：無法載入 env.txt。</td></tr>`;
-                    document.getElementById('approval-list-tbody-desktop').innerHTML = errMsg;
-                    document.getElementById('approval-list-container-mobile').innerHTML = `<div class="p-4 text-center text-red-500 font-bold">⚠️ 錯誤：無法載入 env.txt。</div>`;
+                    document.getElementById('approval-list-container-mobile').innerHTML = `
+                        <div class="p-4 text-center text-red-500 font-bold bg-white rounded-2xl border">
+                            ⚠️ 錯誤：無法載入 env.txt 設定檔。
+                        </div>`;
                 });
         });
 
         // --- 3. 核心功能函式定義 ---
         function fetchPendingForms() {
             if (!GAS_WEB_APP_URL) return;
-            const tbody = document.getElementById('approval-list-tbody-desktop');
-            const mContainer = document.getElementById('approval-list-container-mobile');
-            const loadingHtml = `<i class="fa-solid fa-spinner fa-spin mr-2"></i>正在從雲端拉取申請單...`;
-            
-            tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-400">${loadingHtml}</td></tr>`;
-            mContainer.innerHTML = `<div class="text-center text-gray-400 py-8 bg-white rounded-xl border">${loadingHtml}</div>`;
+            const container = document.getElementById('approval-list-container-mobile');
+            container.innerHTML = `
+                <div class="text-center text-gray-400 py-12 bg-white rounded-2xl border border-gray-200">
+                    <i class="fa-solid fa-spinner fa-spin mr-2"></i>正在同步 Google 試算表資料...
+                </div>`;
 
             fetch(`${GAS_WEB_APP_URL}?action=getPendingForms`)
             .then(response => response.json())
             .then(res => {
                 if (res.status === "success") {
-                    renderApprovalInterface(res.data);
+                    renderApprovalCards(res.data);
                 } else {
-                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">載入失敗：${res.message}</td></tr>`;
-                    mContainer.innerHTML = `<div class="p-4 text-center text-red-500">載入失敗：${res.message}</div>`;
+                    container.innerHTML = `<div class="p-4 text-center text-red-500 bg-white border rounded-2xl">載入失敗：${res.message}</div>`;
                 }
             })
             .catch(error => {
                 console.error("撈取失敗:", error);
-                const connErr = "無法連線至雲端資料庫。請檢查 GAS 部署設定。";
-                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">${connErr}</td></tr>`;
-                mContainer.innerHTML = `<div class="p-4 text-center text-red-500">${connErr}</div>`;
+                container.innerHTML = `<div class="p-4 text-center text-red-500 bg-white border rounded-2xl">無法連線至雲端資料庫，請確認 GAS 是否成功發布。</div>`;
             });
         }
 
-        // 同時渲染 電腦表格版 與 手機卡片版
-        function renderApprovalInterface(forms) {
-            const tbody = document.getElementById('approval-list-tbody-desktop');
-            const mContainer = document.getElementById('approval-list-container-mobile');
-            const badge = document.getElementById('badge-count');
+        // 全面卡片化渲染
+        function renderApprovalCards(forms) {
+            const container = document.getElementById('approval-list-container-mobile');
             const mBadge = document.getElementById('mbadge-count');
             
             if (!forms || forms.length === 0) {
-                const emptyHtml = `<i class="fa-solid fa-circle-check text-emerald-500 mr-2"></i>目前沒有待審核的表單。`;
-                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-400">${emptyHtml}</td></tr>`;
-                mContainer.innerHTML = `<div class="text-center text-gray-400 py-8 bg-white rounded-xl border">${emptyHtml}</div>`;
-                badge.classList.add('hidden');
+                container.innerHTML = `
+                    <div class="text-center text-gray-400 py-12 bg-white rounded-2xl border border-gray-200">
+                        <div class="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-xl mx-auto mb-2">
+                            <i class="fa-solid fa-check"></i>
+                        </div>
+                        <span class="text-sm font-bold text-gray-500">目前沒有待審核的表單！</span>
+                    </div>`;
                 mBadge.classList.add('hidden');
                 return;
             }
 
-            // 更新角標數字
-            badge.innerText = forms.length;
-            badge.classList.remove('hidden');
             mBadge.innerText = forms.length;
             mBadge.classList.remove('hidden');
 
-            let desktopHtml = "";
-            let mobileHtml = "";
-
+            let cardHtml = "";
             forms.forEach(form => {
-                const typeColor = form.formType === '請假' ? 'bg-amber-100 text-amber-800' : 'bg-purple-100 text-purple-800';
+                // 假別特殊標籤顏色
+                const typeColor = form.formType === '請假' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-purple-100 text-purple-800 border-purple-200';
                 
-                // 1. 電腦版 HTML Row
-                desktopHtml += `
-                    <tr>
-                        <td class="p-4"><b>${form.name}</b><div class="text-xs text-gray-400">${form.empId}</div></td>
-                        <td class="p-4"><span class="text-xs px-2 py-1 rounded font-bold ${typeColor}">${form.formType}(${form.subType})</span></td>
-                        <td class="p-4 text-xs text-gray-600">${form.startTime}<br>${form.endTime}<div class="text-indigo-600 font-bold font-mono">${form.totalHours} 小時</div></td>
-                        <td class="p-4 text-gray-500 max-w-xs truncate">${form.reason}</td>
-                        <td class="p-4 text-center whitespace-nowrap space-x-1">
-                            <button onclick="reviewForm('${form.formId}', '已核准')" class="bg-emerald-600 text-white px-2.5 py-1.5 rounded text-xs font-bold shadow-sm">核准</button>
-                            <button onclick="reviewForm('${form.formId}', '已拒絕')" class="bg-rose-50 text-rose-600 px-2.5 py-1.5 rounded text-xs font-bold">拒絕</button>
-                        </td>
-                    </tr>`;
+                // 格式化時間字串，把怪異的 T 和 .000Z 濾掉，讓主管看得很舒服
+                const cleanStart = form.startTime.replace("T", " ").replace(/\.\d+Z$/, "");
+                const cleanEnd = form.endTime.replace("T", " ").replace(/\.\d+Z$/, "");
 
-                // 2. 手機版卡片 Card HTML
-                mobileHtml += `
-                    <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-2.5">
-                        <div class="flex justify-between items-start">
+                cardHtml += `
+                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 space-y-3">
+                        <!-- 卡片頭部：名字與假別 -->
+                        <div class="flex justify-between items-center pb-2 border-b border-gray-100">
                             <div>
-                                <h3 class="text-base font-bold text-gray-800">${form.name}</h3>
-                                <p class="text-xs text-gray-400">工號: ${form.empId}</p>
+                                <span class="text-base font-black text-gray-800">${form.name}</span>
+                                <span class="text-xs text-gray-400 ml-1.5 font-mono">工號: ${form.empId}</span>
                             </div>
-                            <span class="text-xs px-2 py-1 rounded font-bold ${typeColor}">${form.formType}(${form.subType})</span>
+                            <span class="text-xs px-2.5 py-0.5 rounded-lg font-bold border ${typeColor}">
+                                ${form.formType} · ${form.subType}
+                            </span>
                         </div>
-                        <div class="text-xs bg-gray-50 p-2.5 rounded-lg text-gray-600 space-y-1">
-                            <p><b>⏰ 起始：</b>${form.startTime}</p>
-                            <p><b>⏰ 結束：</b>${form.endTime}</p>
-                            <p><b>📊 合計：</b><span class="text-indigo-600 font-bold font-mono">${form.totalHours} 小時</span></p>
+
+                        <!-- 卡片中部：詳細時間 -->
+                        <div class="text-xs bg-gray-50 p-3 rounded-xl text-gray-600 space-y-1.5 font-sans">
+                            <div class="flex"><span class="text-gray-400 shrink-0 w-12">始於：</span><span class="text-gray-800 font-medium">${cleanStart}</span></div>
+                            <div class="flex"><span class="text-gray-400 shrink-0 w-12">迄於：</span><span class="text-gray-800 font-medium">${cleanEnd}</span></div>
+                            <div class="flex items-center"><span class="text-gray-400 shrink-0 w-12">合計：</span><span class="text-indigo-600 font-extrabold text-sm font-mono">${form.totalHours} 小時</span></div>
                         </div>
-                        <div>
-                            <p class="text-xs text-gray-400 font-bold mb-0.5">事由：</p>
-                            <p class="text-sm text-gray-700 bg-amber-50/50 p-2 rounded border border-amber-100/50">${form.reason}</p>
+
+                        <!-- 卡片事由 -->
+                        <div class="bg-amber-50/40 p-2.5 rounded-xl border border-amber-100/60">
+                            <p class="text-[11px] text-amber-600 font-bold mb-0.5"><i class="fa-solid fa-comment-dots mr-1"></i>事由 / 備註</p>
+                            <p class="text-xs text-gray-700 leading-relaxed">${form.reason || '無填寫事由'}</p>
                         </div>
+
+                        <!-- 卡片底部：大按鈕（絕對不會被切除！） -->
                         <div class="grid grid-cols-2 gap-2 pt-1">
-                            <button onclick="reviewForm('${form.formId}', '已拒絕')" class="w-full bg-rose-50 text-rose-600 font-bold py-2 rounded-xl text-xs text-center border border-rose-200">
+                            <button onclick="reviewForm('${form.formId}', '已拒絕')" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold py-2.5 rounded-xl text-xs border border-rose-200 active:scale-95 transition-all">
                                 ❌ 拒絕申請
                             </button>
-                            <button onclick="reviewForm('${form.formId}', '已核准')" class="w-full bg-emerald-600 text-white font-bold py-2 rounded-xl text-xs text-center shadow-sm">
+                            <button onclick="reviewForm('${form.formId}', '已核准')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm active:scale-95 transition-all">
                                 ➔ 准予核定
                             </button>
                         </div>
                     </div>`;
             });
 
-            tbody.innerHTML = desktopHtml;
-            mContainer.innerHTML = mobileHtml;
+            container.innerHTML = cardHtml;
         }
 
         function reviewForm(formId, statusResult) {
             if (!GAS_WEB_APP_URL) return;
-            if (!confirm(`確定要將此表單設定為 [${statusResult}] 嗎？`)) return;
+            if (!confirm(`確定要批核此表單為 [${statusResult}] 嗎？`)) return;
 
             const payload = { action: "reviewForm", formId: formId, statusResult: statusResult, adminName: currentAdminName };
 
@@ -261,7 +212,7 @@
                 body: JSON.stringify(payload)
             })
             .then(() => {
-                alert(`🎯 已成功批核：${statusResult}`);
+                alert(`🎯 審核完畢：系統已成功標記為 [${statusResult}]`);
                 fetchPendingForms();
             })
             .catch(error => {
@@ -273,7 +224,7 @@
         function loadAttendanceReports() {
             if (!GAS_WEB_APP_URL) return;
             const tbody = document.getElementById('report-list-tbody');
-            tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>資料加載中...</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>雲端日誌載入中...</td></tr>`;
 
             fetch(`${GAS_WEB_APP_URL}?action=getAttendanceReports`)
             .then(response => response.json())
@@ -283,12 +234,12 @@
                     res.data.forEach(log => {
                         const badgeColor = log.type === '上班' ? 'text-emerald-600 bg-emerald-50' : 'text-orange-600 bg-orange-50';
                         html += `
-                            <tr>
-                                <td class="p-4 font-bold">${log.name}</td>
-                                <td class="p-4 text-gray-600">${log.date}</td>
-                                <td class="p-4 font-mono font-medium">${log.time}</td>
-                                <td class="p-4"><span class="px-2 py-0.5 rounded text-xs font-bold ${badgeColor}">${log.type}</span></td>
-                                <td class="p-4 text-gray-400 text-xs">${log.memo}</td>
+                            <tr class="hover:bg-gray-50/50">
+                                <td class="p-3 font-bold text-gray-800">${log.name}</td>
+                                <td class="p-3 text-gray-500">${log.date}</td>
+                                <td class="p-3 font-mono font-bold text-gray-700">${log.time}</td>
+                                <td class="p-3"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${badgeColor}">${log.type}</span></td>
+                                <td class="p-3 text-gray-400 text-[11px] max-w-[120px] truncate">${log.memo}</td>
                             </tr>`;
                     });
                     tbody.innerHTML = html;
@@ -304,13 +255,8 @@
             document.getElementById('tab-records').classList.add('hidden');
             document.getElementById(`tab-${tabId}`).classList.remove('hidden');
             
-            // 電腦版側邊按鈕變色
-            document.getElementById('btn-approval').className = "w-full flex items-center space-x-3 px-4 py-3 rounded-xl " + (tabId === 'approval' ? "bg-indigo-600 text-white font-bold text-sm" : "hover:bg-slate-800 text-slate-400 font-medium text-sm");
-            document.getElementById('btn-records').className = "w-full flex items-center space-x-3 px-4 py-3 rounded-xl " + (tabId === 'records' ? "bg-indigo-600 text-white font-bold text-sm" : "hover:bg-slate-800 text-slate-400 font-medium text-sm");
-            
-            // 手機版頂部按鈕變色
-            document.getElementById('mbn-approval').className = "px-3 py-1.5 rounded-lg text-xs font-bold " + (tabId === 'approval' ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-400");
-            document.getElementById('mbn-records').className = "px-3 py-1.5 rounded-lg text-xs font-bold " + (tabId === 'records' ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-400");
+            document.getElementById('mbn-approval').className = "px-3 py-2 rounded-xl text-xs font-bold transition " + (tabId === 'approval' ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-400");
+            document.getElementById('mbn-records').className = "px-3 py-2 rounded-xl text-xs font-bold transition " + (tabId === 'records' ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-400");
 
             document.getElementById('current-title').innerText = tabId === 'approval' ? '待審核表單中心' : '出缺勤報表與統計';
             
@@ -319,7 +265,8 @@
 
         function startLiveTime() {
             setInterval(() => {
-                document.getElementById('live-time').innerText = new Date().toLocaleString('zh-TW', { hour12: false });
+                const now = new Date();
+                document.getElementById('live-time').innerText = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate() + ' ' + now.toTimeString().split(' ')[0];
             }, 1000);
         }
     </script>
