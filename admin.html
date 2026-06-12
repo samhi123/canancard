@@ -39,7 +39,7 @@
     <main class="flex-1 flex flex-col overflow-hidden">
         <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0">
             <h1 class="font-bold text-gray-800 text-lg" id="current-title">待審核表單中心</h1>
-            <span class="text-sm text-gray-500" id="live-time">2026-06-12 21:45:00</span>
+            <span class="text-sm text-gray-500" id="live-time">2026-06-12 00:00:00</span>
         </header>
 
         <div class="p-6 flex-1 overflow-y-auto">
@@ -101,7 +101,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             startLiveTime();
             
-            // 安全載入環境變數
+            // 安全載入環境變數 env.txt
             fetch('env.txt')
                 .then(response => {
                     if (!response.ok) throw new Error('找不到 env.txt 檔案');
@@ -116,7 +116,7 @@
                     console.error("後台初始化失敗:", error);
                     document.getElementById('approval-list-tbody').innerHTML = `
                         <tr><td colspan="5" class="p-4 text-center text-red-500 font-bold">
-                            ⚠️ 錯誤：無法載入 env.txt。請確認檔案存在，且網頁是透過本地伺服器環境開啟。
+                            ⚠️ 錯誤：無法載入 env.txt。請確認檔案存在，且網頁是在本地伺服器環境下開啟。
                         </td></tr>`;
                 });
         });

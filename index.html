@@ -11,18 +11,18 @@
 
     <header class="bg-white px-4 py-3 shadow-sm flex items-center justify-between shrink-0">
         <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm">
-                明
+            <div id="userAvatarContainer" class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm overflow-hidden">
+                員
             </div>
             <div>
                 <div class="flex items-center space-x-1">
-                    <span class="font-bold text-gray-800 text-base" id="userName">張小明</span>
+                    <span class="font-bold text-gray-800 text-base" id="userName">載入中...</span>
                     <span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-medium" id="userRole">員工</span>
                 </div>
-                <p class="text-xs text-gray-500" id="userEmpId">工號: E001 · 資訊部</p>
+                <p class="text-xs text-gray-500" id="userEmpId">工號: E001 · 行動端打卡</p>
             </div>
         </div>
-        <button class="text-gray-400 hover:text-red-500 text-sm font-medium transition">
+        <button onclick="handleLogout()" class="text-gray-400 hover:text-red-500 text-sm font-medium transition">
             <i class="fa-solid fa-right-from-bracket mr-1"></i>登出
         </button>
     </header>
@@ -32,7 +32,7 @@
         <section id="page-clock" class="space-y-4">
             <div class="bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-2xl p-6 text-center shadow-md">
                 <p class="text-sm opacity-80 tracking-wider mb-1" id="currentDate">2026年06月12日 星期五</p>
-                <h1 class="text-4xl font-black tracking-tight" id="currentTime">21:30:54</h1>
+                <h1 class="text-4xl font-black tracking-tight" id="currentTime">00:00:00</h1>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
@@ -127,11 +127,10 @@
             <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-2">
                 <div class="flex justify-between items-center">
                     <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">⏳ 審核中</span>
-                    <span class="text-xs text-gray-400">2026-06-12</span>
+                    <span class="text-xs text-gray-400">系統即時連動</span>
                 </div>
-                <div class="text-sm font-bold text-gray-800">請假申請 - 事假 (8 小時)</div>
-                <div class="text-xs text-gray-500">時間：06-15 09:00 ~ 06-15 18:00</div>
-                <div class="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg">事由：家中有事需親自處理</div>
+                <div class="text-sm font-bold text-gray-800">請假/加班 雲端申請表單</div>
+                <div class="text-xs text-gray-500">送出表單後，主管可同步在後台進行簽核。</div>
             </div>
         </section>
 
@@ -152,19 +151,28 @@
         </button>
     </nav>
 
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
     <script>
         // --- 1. 全域變數宣告 ---
         let GAS_WEB_APP_URL = "";
         let currentFormType = 'leave';
-        const currentEmployee = { empId: "E001", name: "張小明" };
+        
+        // 預設員工資訊（當 LINE LIFF 順利初始化後，會自動被真實 LINE 個資覆蓋）
+        const currentEmployee = { 
+            empId: "E001", 
+            name: "未登入員工" 
+        };
 
-        // --- 2. 網頁事件監聽（載入環境變數與時鐘） ---
+        // ⚠️【請填入你的 LIFF ID】
+        const MY_LIFF_ID = "2010383109-EolilvJ0"; 
+
+        // --- 2. 網頁事件監聽（載入環境變數與啟動時鐘） ---
         window.addEventListener('DOMContentLoaded', () => {
-            // 優先啟動時鐘，確保介面不卡住
             updateClock();
             setInterval(updateClock, 1000);
 
-            // 讀取設定檔，採 Catch 防崩潰安全設計
+            // 步驟 A：讀取設定檔 env.txt
             fetch('env.txt')
                 .then(response => {
                     if (!response.ok) throw new Error('檔案讀取失敗');
@@ -173,14 +181,55 @@
                 .then(url => {
                     GAS_WEB_APP_URL = url.trim();
                     console.log("員工端 GAS 網址加載成功:", GAS_WEB_APP_URL);
+                    
+                    // 步驟 B：設定檔加載成功後，再啟動 LINE LIFF 登入機制
+                    initializeLiff();
                 })
                 .catch(error => {
                     console.error("環境變數載入失敗:", error);
-                    alert("⚠️ 系統警報：無法載入 env.txt 設定檔。\n請確保您是透過 VS Code 的 Live Server (http://127.0.0.1:5500) 開啟網頁，而非直接雙擊 HTML 檔案。");
+                    alert("⚠️ 系統警報：無法載入 env.txt 設定檔。");
                 });
         });
 
-        // --- 3. 核心功能函式定義 (保證在按鈕點擊前已被定義) ---
+        // --- 3. LINE LIFF 初始化與個資抓取功能 ---
+        function initializeLiff() {
+            if (MY_LIFF_ID === "2010383109-EolilvJ0" || MY_LIFF_ID === "") {
+                console.warn("提示：尚未填入真實的 LIFF ID，目前維持本地端測試模式。");
+                document.getElementById('userName').innerText = "測試張小明 (在地端)";
+                currentEmployee.name = "測試張小明";
+                return;
+            }
+
+            liff.init({ liffId: MY_LIFF_ID })
+                .then(() => {
+                    // 判斷使用者是否已在 LINE 環境中登入
+                    if (!liff.isLoggedIn()) {
+                        liff.login(); // 引導至 LINE 帳密登入頁面
+                    } else {
+                        // 已登入，抓取 LINE 使用者個人檔案
+                        liff.getProfile()
+                            .then(profile => {
+                                console.log("LINE Profile 撈取成功:", profile);
+                                
+                                // 覆蓋全域變數與網頁上的標籤名字
+                                currentEmployee.name = profile.displayName; 
+                                document.getElementById('userName').innerText = profile.displayName;
+                                
+                                // 替換頭貼為 LINE 真實大頭貼圖片
+                                if (profile.pictureUrl) {
+                                    document.getElementById('userAvatarContainer').innerHTML = `
+                                        <img src="${profile.pictureUrl}" class="w-full h-full rounded-full object-cover">`;
+                                }
+                            })
+                            .catch(err => console.error("抓取 LINE 個資失敗:", err));
+                    }
+                })
+                .catch(error => {
+                    console.error("LIFF 初始化失敗:", error);
+                });
+        }
+
+        // --- 4. 介面與功能函式定義 ---
         function updateClock() {
             const now = new Date();
             const year = now.getFullYear();
@@ -227,7 +276,7 @@
 
         function handleClock(type) {
             if (!GAS_WEB_APP_URL) { 
-                alert("❌ 連線失敗：尚未成功載入 GAS 雲端網址，請確認 env.txt 設定是否正確。"); 
+                alert("❌ 連線失敗：尚未成功載入 GAS 雲端網址，請確認 env.txt 設定。"); 
                 return; 
             }
             const nowTime = document.getElementById('currentTime').innerText;
@@ -247,7 +296,7 @@
                 body: JSON.stringify(payload)
             })
             .then(() => {
-                alert(`🎉 系統已成功寫入：${type}打卡紀錄！\n時間：${nowTime}`);
+                alert(`🎉 系統已成功寫入：${type}打卡紀錄！\n打卡員工：${currentEmployee.name}\n時間：${nowTime}`);
                 if (type === '上班') {
                     document.getElementById('todayClockIn').innerText = `${nowTime} (成功)`;
                     document.getElementById('todayClockIn').className = "font-medium text-emerald-600";
@@ -294,7 +343,7 @@
                 body: JSON.stringify(payload)
             })
             .then(() => {
-                alert("📋 表單已順利上傳至雲端資料庫，等待主管核簽。");
+                alert(`📋 表單已順利上傳！\n申請人：${currentEmployee.name}\n等待主管核簽。`);
                 document.getElementById('form-start-time').value = "";
                 document.getElementById('form-end-time').value = "";
                 document.getElementById('form-hours').value = "";
@@ -305,6 +354,16 @@
                 console.error("API 錯誤:", error);
                 alert("表單送出失敗。");
             });
+        }
+
+        function handleLogout() {
+            if (liff.isLoggedIn()) {
+                liff.logout();
+                alert("已成功登出 LINE 綁定狀態。");
+                location.reload();
+            } else {
+                alert("目前非 LIFF 登入狀態。");
+            }
         }
     </script>
 </body>
