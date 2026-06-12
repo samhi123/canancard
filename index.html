@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>行動人事出勤系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+</head>
+<body class="bg-gray-100 font-sans h-screen flex flex-col justify-between select-none">
+
+    <header class="bg-white px-4 py-3 shadow-sm flex items-center justify-between shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                明
+            </div>
+            <div>
+                <div class="flex items-center space-x-1">
+                    <span class="font-bold text-gray-800 text-base" id="userName">張小明</span>
+                    <span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-medium" id="userRole">員工</span>
+                </div>
+                <p class="text-xs text-gray-500" id="userEmpId">工號: E001 · 資訊部</p>
+            </div>
+        </div>
+        <button class="text-gray-400 hover:text-red-500 text-sm font-medium transition">
+            <i class="fa-solid fa-right-from-bracket mr-1"></i>登出
+        </button>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-4 pb-20">
+        
+        <section id="page-clock" class="space-y-4">
+            <div class="bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-2xl p-6 text-center shadow-md">
+                <p class="text-sm opacity-80 tracking-wider mb-1" id="currentDate">2026年06月12日 星期五</p>
+                <h1 class="text-4xl font-black tracking-tight" id="currentTime">21:30:54</h1>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="handleClock('上班')" class="bg-white border border-gray-200 active:scale-95 transition-all rounded-2xl p-5 flex flex-col items-center justify-center shadow-sm hover:shadow-md group">
+                    <div class="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:bg-emerald-100 transition-colors">
+                        <i class="fa-solid fa-business-time"></i>
+                    </div>
+                    <span class="font-bold text-gray-800 text-base">上班打卡</span>
+                    <span class="text-xs text-gray-400 mt-1">建議 09:00 前</span>
+                </button>
+
+                <button onclick="handleClock('下班')" class="bg-white border border-gray-200 active:scale-95 transition-all rounded-2xl p-5 flex flex-col items-center justify-center shadow-sm hover:shadow-md group">
+                    <div class="w-14 h-14 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:bg-orange-100 transition-colors">
+                        <i class="fa-solid fa-mug-hot"></i>
+                    </div>
+                    <span class="font-bold text-gray-800 text-base">下班打卡</span>
+                    <span class="text-xs text-gray-400 mt-1">建議 18:00 後</span>
+                </button>
+            </div>
+
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center">
+                    <i class="fa-solid fa-history mr-2 text-indigo-500"></i>今日打卡狀態
+                </h3>
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between items-center pb-2 border-b border-gray-50">
+                        <span class="text-gray-500">上班時間</span>
+                        <span class="font-medium text-gray-400" id="todayClockIn">尚未打卡</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-500">下班時間</span>
+                        <span class="font-medium text-gray-400" id="todayClockOut">尚未打卡</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="page-form" class="hidden bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
+            <h2 class="text-lg font-bold text-gray-800 border-b pb-2">📋 表單申請</h2>
+            
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">申請項目</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" onclick="toggleFormType('leave')" id="btn-type-leave" class="py-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold text-sm transition">
+                        請假申請
+                    </button>
+                    <button type="button" onclick="toggleFormType('overtime')" id="btn-type-overtime" class="py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition">
+                        加班申請
+                    </button>
+                </div>
+            </div>
+
+            <div id="leave-type-block">
+                <label class="block text-sm font-bold text-gray-700 mb-1">假別</label>
+                <select id="form-sub-type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
+                    <option value="事假">事假</option>
+                    <option value="病假">病假</option>
+                    <option value="特休">特休</option>
+                    <option value="婚假/喪假">婚假/喪假</option>
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">開始日期時間</label>
+                    <input type="datetime-local" id="form-start-time" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">結束日期時間</label>
+                    <input type="datetime-local" id="form-end-time" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">合計申請時數 (小時)</label>
+                <input type="number" id="form-hours" placeholder="例如: 8" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">事由 / 備註說明</label>
+                <textarea id="form-reason" rows="3" placeholder="請輸入具體原因..." class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"></textarea>
+            </div>
+
+            <button onclick="submitApplication()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-sm hover:bg-indigo-700 active:scale-98 transition-all text-sm">
+                送出申請單
+            </button>
+        </section>
+
+        <section id="page-history" class="hidden space-y-3">
+            <h2 class="text-lg font-bold text-gray-800 px-1">🔍 申請進度追蹤</h2>
+            
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">⏳ 審核中</span>
+                    <span class="text-xs text-gray-400">2026-06-12</span>
+                </div>
+                <div class="text-sm font-bold text-gray-800">請假申請 - 事假 (8 小時)</div>
+                <div class="text-xs text-gray-500">時間：06-15 09:00 ~ 06-15 18:00</div>
+                <div class="text-xs text-gray-600 bg-gray-50 p-2 rounded-lg">事由：家中有事需親自處理</div>
+            </div>
+        </section>
+
+    </main>
+
+    <nav class="bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0 h-16 flex items-center justify-around px-2 shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.03)] z-50">
+        <button onclick="switchPage('clock')" id="nav-clock" class="flex flex-col items-center justify-center w-20 text-indigo-600 transition-colors">
+            <i class="fa-solid fa-clock-rotate-left text-xl"></i>
+            <span class="text-[11px] font-bold mt-1">打卡首頁</span>
+        </button>
+        <button onclick="switchPage('form')" id="nav-form" class="flex flex-col items-center justify-center w-20 text-gray-400 hover:text-gray-600 transition-colors">
+            <i class="fa-solid fa-file-pen text-xl"></i>
+            <span class="text-[11px] font-medium mt-1">表單申請</span>
+        </button>
+        <button onclick="switchPage('history')" id="nav-history" class="flex flex-col items-center justify-center w-20 text-gray-400 hover:text-gray-600 transition-colors">
+            <i class="fa-solid fa-list-check text-xl"></i>
+            <span class="text-[11px] font-medium mt-1">申請進度</span>
+        </button>
+    </nav>
+
+    <script>
+        // --- 1. 全域變數宣告 ---
+        let GAS_WEB_APP_URL = "";
+        let currentFormType = 'leave';
+        const currentEmployee = { empId: "E001", name: "張小明" };
+
+        // --- 2. 網頁事件監聽（載入環境變數與時鐘） ---
+        window.addEventListener('DOMContentLoaded', () => {
+            // 優先啟動時鐘，確保介面不卡住
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            // 讀取設定檔，採 Catch 防崩潰安全設計
+            fetch('env.txt')
+                .then(response => {
+                    if (!response.ok) throw new Error('檔案讀取失敗');
+                    return response.text();
+                })
+                .then(url => {
+                    GAS_WEB_APP_URL = url.trim();
+                    console.log("員工端 GAS 網址加載成功:", GAS_WEB_APP_URL);
+                })
+                .catch(error => {
+                    console.error("環境變數載入失敗:", error);
+                    alert("⚠️ 系統警報：無法載入 env.txt 設定檔。\n請確保您是透過 VS Code 的 Live Server (http://127.0.0.1:5500) 開啟網頁，而非直接雙擊 HTML 檔案。");
+                });
+        });
+
+        // --- 3. 核心功能函式定義 (保證在按鈕點擊前已被定義) ---
+        function updateClock() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const date = String(now.getDate()).padStart(2, '0');
+            const dayNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            document.getElementById('currentDate').innerText = `${year}年${month}月${date}日 ${dayNames[now.getDay()]}`;
+            document.getElementById('currentTime').innerText = now.toTimeString().split(' ')[0];
+        }
+
+        function switchPage(pageId) {
+            document.getElementById('page-clock').classList.add('hidden');
+            document.getElementById('page-form').classList.add('hidden');
+            document.getElementById('page-history').classList.add('hidden');
+            document.getElementById(`page-${pageId}`).classList.remove('hidden');
+
+            ['clock', 'form', 'history'].forEach(nav => {
+                const btn = document.getElementById(`nav-${nav}`);
+                btn.className = "flex flex-col items-center justify-center w-20 text-gray-400";
+                btn.querySelector('span').className = "text-[11px] font-medium mt-1";
+            });
+
+            const activeBtn = document.getElementById(`nav-${pageId}`);
+            activeBtn.className = "flex flex-col items-center justify-center w-20 text-indigo-600";
+            activeBtn.querySelector('span').className = "text-[11px] font-bold mt-1";
+        }
+
+        function toggleFormType(type) {
+            currentFormType = type;
+            const btnLeave = document.getElementById('btn-type-leave');
+            const btnOvertime = document.getElementById('btn-type-overtime');
+            const leaveBlock = document.getElementById('leave-type-block');
+
+            if (type === 'leave') {
+                btnLeave.className = "py-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold text-sm transition";
+                btnOvertime.className = "py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition";
+                leaveBlock.classList.remove('hidden');
+            } else {
+                btnOvertime.className = "py-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold text-sm transition";
+                btnLeave.className = "py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition";
+                leaveBlock.classList.add('hidden');
+            }
+        }
+
+        function handleClock(type) {
+            if (!GAS_WEB_APP_URL) { 
+                alert("❌ 連線失敗：尚未成功載入 GAS 雲端網址，請確認 env.txt 設定是否正確。"); 
+                return; 
+            }
+            const nowTime = document.getElementById('currentTime').innerText;
+            
+            const payload = {
+                action: "clockInOut",
+                empId: currentEmployee.empId,
+                name: currentEmployee.name,
+                type: type,
+                memo: "LINE 現場打卡"
+            };
+
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(payload)
+            })
+            .then(() => {
+                alert(`🎉 系統已成功寫入：${type}打卡紀錄！\n時間：${nowTime}`);
+                if (type === '上班') {
+                    document.getElementById('todayClockIn').innerText = `${nowTime} (成功)`;
+                    document.getElementById('todayClockIn').className = "font-medium text-emerald-600";
+                } else {
+                    document.getElementById('todayClockOut').innerText = `${nowTime} (成功)`;
+                    document.getElementById('todayClockOut').className = "font-medium text-emerald-600";
+                }
+            })
+            .catch(error => {
+                console.error("API 錯誤:", error);
+                alert("打卡連線發生錯誤。");
+            });
+        }
+
+        function submitApplication() {
+            if (!GAS_WEB_APP_URL) { alert("❌ 連線失敗：尚未載入設定網址。"); return; }
+            const subType = document.getElementById('form-sub-type').value;
+            const startTime = document.getElementById('form-start-time').value;
+            const endTime = document.getElementById('form-end-time').value;
+            const totalHours = document.getElementById('form-hours').value;
+            const reason = document.getElementById('form-reason').value;
+
+            if (!startTime || !endTime || !totalHours || !reason) {
+                alert("請完整填寫表單上的日期、時數及事由！");
+                return;
+            }
+
+            const payload = {
+                action: "submitForm",
+                empId: currentEmployee.empId,
+                name: currentEmployee.name,
+                formType: currentFormType === 'leave' ? '請假' : '加班',
+                subType: currentFormType === 'leave' ? subType : "一般加班",
+                startTime: startTime.replace("T", " "),
+                endTime: endTime.replace("T", " "),
+                totalHours: totalHours,
+                reason: reason
+            };
+
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(payload)
+            })
+            .then(() => {
+                alert("📋 表單已順利上傳至雲端資料庫，等待主管核簽。");
+                document.getElementById('form-start-time').value = "";
+                document.getElementById('form-end-time').value = "";
+                document.getElementById('form-hours').value = "";
+                document.getElementById('form-reason').value = "";
+                switchPage('history');
+            })
+            .catch(error => {
+                console.error("API 錯誤:", error);
+                alert("表單送出失敗。");
+            });
+        }
+    </script>
+</body>
+</html>

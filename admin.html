@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人事後台管理系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 font-sans h-screen flex overflow-hidden">
+
+    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between shrink-0 hidden md:flex">
+        <div>
+            <div class="p-5 bg-slate-950 flex items-center space-x-3 text-white">
+                <i class="fa-solid fa-gears text-indigo-400 text-xl"></i>
+                <span class="font-bold text-lg tracking-wide">人事管理後台</span>
+            </div>
+            <div class="p-4 bg-slate-800/50 border-b border-slate-800 flex items-center space-x-3">
+                <div class="w-9 h-9 bg-emerald-600 rounded-full flex items-center justify-center text-white font-bold text-sm">美</div>
+                <div>
+                    <p class="text-sm font-bold text-white">李四美 (HR)</p>
+                    <p class="text-xs text-slate-400">系統管理員</p>
+                </div>
+            </div>
+            <nav class="p-3 space-y-1">
+                <button onclick="switchTab('approval')" id="btn-approval" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm transition">
+                    <i class="fa-solid fa-clipboard-check text-base w-5"></i>
+                    <span>待審核表單</span>
+                    <span class="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full hidden" id="badge-count">0</span>
+                </button>
+                <button onclick="switchTab('records')" id="btn-records" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-slate-200 font-medium text-sm transition">
+                    <i class="fa-solid fa-calendar-days text-base w-5"></i>
+                    <span>出缺勤報表</span>
+                </button>
+            </nav>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-hidden">
+        <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shrink-0">
+            <h1 class="font-bold text-gray-800 text-lg" id="current-title">待審核表單中心</h1>
+            <span class="text-sm text-gray-500" id="live-time">2026-06-12 21:45:00</span>
+        </header>
+
+        <div class="p-6 flex-1 overflow-y-auto">
+            <section id="tab-approval" class="space-y-4">
+                <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead class="bg-gray-50 text-gray-600 font-bold border-b border-gray-200">
+                            <tr>
+                                <th class="p-4">申請人</th>
+                                <th class="p-4">表單類型</th>
+                                <th class="p-4">詳細時間與時數</th>
+                                <th class="p-4">事由 / 備註</th>
+                                <th class="p-4 text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="approval-list-tbody" class="divide-y divide-gray-100 text-gray-700">
+                            <tr>
+                                <td colspan="5" class="p-8 text-center text-gray-400">
+                                    <i class="fa-solid fa-spinner fa-spin mr-2"></i>正在等待本地設定檔加載...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="tab-records" class="hidden space-y-4">
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-4 items-center">
+                    <button onclick="loadAttendanceReports()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-lg text-sm shadow-sm transition">
+                        <i class="fa-solid fa-magnifying-glass mr-1"></i>重新整理報表
+                    </button>
+                </div>
+                <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead class="bg-gray-50 text-gray-600 font-bold border-b border-gray-200">
+                            <tr>
+                                <th class="p-4">姓名/工號</th>
+                                <th class="p-4">日期</th>
+                                <th class="p-4">打卡時間</th>
+                                <th class="p-4">打卡類型</th>
+                                <th class="p-4">備註</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-list-tbody" class="divide-y divide-gray-100 text-gray-700">
+                            <tr><td colspan="5" class="p-4 text-center text-gray-400">點擊上方按鈕載入出勤日誌</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        // --- 1. 全域變數宣告 ---
+        let GAS_WEB_APP_URL = "";
+        const currentAdminName = "李四美"; 
+
+        // --- 2. 網頁事件監聽 ---
+        window.addEventListener('DOMContentLoaded', () => {
+            startLiveTime();
+            
+            // 安全載入環境變數
+            fetch('env.txt')
+                .then(response => {
+                    if (!response.ok) throw new Error('找不到 env.txt 檔案');
+                    return response.text();
+                })
+                .then(url => {
+                    GAS_WEB_APP_URL = url.trim();
+                    console.log("後台 GAS 網址加載成功:", GAS_WEB_APP_URL);
+                    fetchPendingForms(); // 取得網址後立馬撈資料
+                })
+                .catch(error => {
+                    console.error("後台初始化失敗:", error);
+                    document.getElementById('approval-list-tbody').innerHTML = `
+                        <tr><td colspan="5" class="p-4 text-center text-red-500 font-bold">
+                            ⚠️ 錯誤：無法載入 env.txt。請確認檔案存在，且網頁是透過本地伺服器環境開啟。
+                        </td></tr>`;
+                });
+        });
+
+        // --- 3. 核心功能函式定義 ---
+        function fetchPendingForms() {
+            if (!GAS_WEB_APP_URL) return;
+            const tbody = document.getElementById('approval-list-tbody');
+            tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在從 Google 試算表拉取申請單...</td></tr>`;
+
+            fetch(`${GAS_WEB_APP_URL}?action=getPendingForms`)
+            .then(response => response.json())
+            .then(res => {
+                if (res.status === "success") {
+                    renderApprovalTable(res.data);
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">載入失敗：${res.message}</td></tr>`;
+                }
+            })
+            .catch(error => {
+                console.error("撈取失敗:", error);
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">無法連線至雲端資料庫。請確認 GAS 部署設定為權限「所有人」。</td></tr>`;
+            });
+        }
+
+        function renderApprovalTable(forms) {
+            const tbody = document.getElementById('approval-list-tbody');
+            const badge = document.getElementById('badge-count');
+            
+            if (!forms || forms.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-gray-400"><i class="fa-solid fa-circle-check text-emerald-500 mr-2"></i>目前沒有待審核的表單。</td></tr>`;
+                badge.classList.add('hidden');
+                return;
+            }
+
+            badge.innerText = forms.length;
+            badge.classList.remove('hidden');
+
+            let htmlRows = "";
+            forms.forEach(form => {
+                const typeColor = form.formType === '請假' ? 'bg-amber-100 text-amber-800' : 'bg-purple-100 text-purple-800';
+                htmlRows += `
+                    <tr>
+                        <td class="p-4"><b>${form.name}</b><div class="text-xs text-gray-400">${form.empId}</div></td>
+                        <td class="p-4"><span class="text-xs px-2 py-1 rounded font-bold ${typeColor}">${form.formType}(${form.subType})</span></td>
+                        <td class="p-4 text-xs text-gray-600">${form.startTime}<br>${form.endTime}<div class="text-indigo-600 font-bold font-mono">${form.totalHours} 小時</div></td>
+                        <td class="p-4 text-gray-500 max-w-xs truncate">${form.reason}</td>
+                        <td class="p-4 text-center whitespace-nowrap space-x-1">
+                            <button onclick="reviewForm('${form.formId}', '已核准')" class="bg-emerald-600 text-white px-2.5 py-1.5 rounded text-xs font-bold">核准</button>
+                            <button onclick="reviewForm('${form.formId}', '已拒絕')" class="bg-rose-50 text-rose-600 px-2.5 py-1.5 rounded text-xs font-bold">拒絕</button>
+                        </td>
+                    </tr>`;
+            });
+            tbody.innerHTML = htmlRows;
+        }
+
+        function reviewForm(formId, statusResult) {
+            if (!GAS_WEB_APP_URL) return;
+            if (!confirm(`確定要將此表單設定為 [${statusResult}] 嗎？`)) return;
+
+            const payload = { action: "reviewForm", formId: formId, statusResult: statusResult, adminName: currentAdminName };
+
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(payload)
+            })
+            .then(() => {
+                alert(`🎯 已成功批核：${statusResult}`);
+                fetchPendingForms();
+            })
+            .catch(error => {
+                console.error("審核失敗:", error);
+                alert("通訊失敗，請重試。");
+            });
+        }
+
+        function loadAttendanceReports() {
+            if (!GAS_WEB_APP_URL) return;
+            const tbody = document.getElementById('report-list-tbody');
+            tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>資料加載中...</td></tr>`;
+
+            fetch(`${GAS_WEB_APP_URL}?action=getAttendanceReports`)
+            .then(response => response.json())
+            .then(res => {
+                if (res.status === "success" && res.data.length > 0) {
+                    let html = "";
+                    res.data.forEach(log => {
+                        const badgeColor = log.type === '上班' ? 'text-emerald-600 bg-emerald-50' : 'text-orange-600 bg-orange-50';
+                        html += `
+                            <tr>
+                                <td class="p-4 font-bold">${log.name}</td>
+                                <td class="p-4 text-gray-600">${log.date}</td>
+                                <td class="p-4 font-mono font-medium">${log.time}</td>
+                                <td class="p-4"><span class="px-2 py-0.5 rounded text-xs font-bold ${badgeColor}">${log.type}</span></td>
+                                <td class="p-4 text-gray-400 text-xs">${log.memo}</td>
+                            </tr>`;
+                    });
+                    tbody.innerHTML = html;
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-400">目前尚無任何打卡明細。</td></tr>`;
+                }
+            })
+            .catch(() => { tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">報表讀取失敗。</td></tr>`; });
+        }
+
+        function switchTab(tabId) {
+            document.getElementById('tab-approval').classList.add('hidden');
+            document.getElementById('tab-records').classList.add('hidden');
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            document.getElementById('current-title').innerText = tabId === 'approval' ? '待審核表單中心' : '出缺勤報表與統計';
+            
+            document.getElementById('btn-approval').className = "w-full flex items-center space-x-3 px-4 py-3 rounded-xl " + (tabId === 'approval' ? "bg-indigo-600 text-white font-bold" : "hover:bg-slate-800 text-slate-400");
+            document.getElementById('btn-records').className = "w-full flex items-center space-x-3 px-4 py-3 rounded-xl " + (tabId === 'records' ? "bg-indigo-600 text-white font-bold" : "hover:bg-slate-800 text-slate-400");
+            
+            if (tabId === 'records') loadAttendanceReports();
+        }
+
+        function startLiveTime() {
+            setInterval(() => {
+                document.getElementById('live-time').innerText = new Date().toLocaleString('zh-TW', { hour12: false });
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
