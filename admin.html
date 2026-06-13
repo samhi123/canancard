@@ -4,14 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>企業雲端人事後台管理系統</title>
-    <!-- 引入 Tailwind CSS 增強美觀介面 -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- 引入 Font Awesome 圖示 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- 🎯 關鍵核心：在此處引入外掛的環境設定檔 -->
     <script src="env.js"></script>
-
     <style>
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f9fafb; }
         .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -21,7 +16,6 @@
 <body class="p-4 md:p-8">
 
     <div class="max-w-6xl mx-auto">
-        <!-- 頂部標題區 -->
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-200 pb-4 mb-6 gap-2">
             <div>
                 <h1 class="text-2xl font-bold text-gray-800">
@@ -35,7 +29,6 @@
             </div>
         </div>
 
-        <!-- 功能分頁切換鈕 -->
         <div class="flex space-x-2 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
             <button onclick="switchTab('pending-section')" id="btn-pending-section" class="tab-btn bg-white text-gray-800 px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all">
                 <i class="fa-solid fa-file-signature mr-1"></i>待審核單據
@@ -48,7 +41,6 @@
             </button>
         </div>
 
-        <!-- 分頁一：待審核單據 -->
         <div id="pending-section" class="tab-content bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-bold text-gray-700">即時待審名單</h2>
@@ -67,16 +59,11 @@
                             <th class="p-3 text-center">審核決策</th>
                         </tr>
                     </thead>
-                    <tbody id="pending-table-body" class="text-gray-700 text-sm divide-y divide-gray-50">
-                        <tr>
-                            <td colspan="5" class="text-center p-8 text-gray-400">正在初始化環境變數...</td>
-                        </tr>
-                    </tbody>
+                    <tbody id="pending-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- 分頁二：人事檔案維護 -->
         <div id="hr-section" class="tab-content hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
                 <h2 class="text-lg font-bold text-gray-700">全體員工清單</h2>
@@ -106,12 +93,11 @@
             </div>
         </div>
 
-        <!-- 分頁三：歷史出勤報表 -->
         <div id="report-section" class="tab-content hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-bold text-gray-700">全體歷史打卡追蹤</h2>
                 <button onclick="loadAttendanceReports()" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg font-medium transition-all">
-                    <i class="fa-solid fa-arrow-down-9-1 mr-1"></i>最新紀錄在前
+                    <i class="fa-solid fa-rotate mr-1"></i>重新整理
                 </button>
             </div>
             <div class="table-container">
@@ -132,14 +118,12 @@
         </div>
     </div>
 
-    <!-- 人事編輯彈窗 (Modal) -->
     <div id="hr-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
             <h3 id="modal-title" class="text-lg font-bold text-gray-800 mb-4">編輯員工資料</h3>
             <form id="hr-form" onsubmit="submitHRForm(event)" class="space-y-3 text-sm">
                 <div>
-                    <label class="block text-gray-600 mb-1 font-medium">員工編號 (不可重複)</label>
-                    <!-- 變更為 text 型態，允許開頭為 0 的編號輸入 -->
+                    <label class="block text-gray-600 mb-1 font-medium">員工編號 (不可重複，可輸入 0 開頭)</label>
                     <input type="text" id="form-empId" required class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
@@ -164,12 +148,11 @@
                 </div>
                 <div>
                     <label class="block text-gray-600 mb-1 font-medium">聯絡電話 (選填，若無請留空)</label>
-                    <input type="tel" id="form-phone" placeholder="若無請留空" class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                    <input type="text" id="form-phone" placeholder="若無請留空" class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
                 </div>
                 <div>
-                    <label class="block text-gray-600 mb-1 font-medium">LINE User ID</label>
-                    <!-- 允許字串格式輸入，保留開頭 0 -->
-                    <input type="text" id="form-lineUid" required class="w-full border border-gray-200 rounded-xl px-3 py-2 font-mono text-xs focus:outline-none focus:border-indigo-500">
+                    <label class="block text-gray-600 mb-1 font-medium">LINE User ID (可輸入 0 開頭)</label>
+                    <input type="text" id="form-lineUid" required class="w-full border border-gray-200 rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-indigo-500">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -189,184 +172,77 @@
                 </div>
                 <div class="flex space-x-2 pt-4 justify-end">
                     <button type="button" onclick="closeHRModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-xl transition-all">取消</button>
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-all shadow-md shadow-indigo-100">儲存人事檔案</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-all shadow-md">儲存人事檔案</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- 前端控制 JavaScript -->
     <script>
-        if (typeof SYSTEM_ENV === 'undefined') {
-            alert("🛑 嚴重系統錯誤：找不到 env.js 環境設定檔，請檢查檔案是否存在於同目錄中！");
-        }
-
         const GAS_WEB_APP_URL = SYSTEM_ENV.GAS_WEB_APP_URL;
         const MOCK_LINE_UID = SYSTEM_ENV.CURRENT_LINE_UID; 
+        let hrProfilesData = []; // 用於快取員工資料
 
         window.onload = function() {
             if(SYSTEM_ENV.COMPANY_NAME) {
                 document.getElementById('ui-company-name').innerText = SYSTEM_ENV.COMPANY_NAME;
             }
-
             setInterval(() => {
-                const now = new Date();
-                document.getElementById('current-time-clock').innerText = "⏱️ 系統時間：" + now.toLocaleString('zh-TW', {hour12:false});
+                document.getElementById('current-time-clock').innerText = "⏱️ 系統時間：" + new Date().toLocaleString('zh-TW', {hour12:false});
             }, 1000);
 
             verifyAdminIdentity();
         };
 
-        function copyLiffUrl() {
-            if (!SYSTEM_ENV.LIFF_URL || SYSTEM_ENV.LIFF_URL.includes("XXXXXXXX")) {
-                alert("⚠️ 複製失敗：環境設定檔(env.js) 中尚未設定該公司的真實 LIFF_URL！");
-                return;
-            }
-            navigator.clipboard.writeText(SYSTEM_ENV.LIFF_URL)
-                .then(() => alert(`📋 已成功複製該公司專屬 LIFF 網址：\n${SYSTEM_ENV.LIFF_URL}\n\n您可以直接發送給員工進行身份綁定。`))
-                .catch(err => alert("複製失敗，瀏覽器拒絕存取剪貼簿。"));
-        }
-
-        // 1. 驗證管理員身分
         function verifyAdminIdentity() {
-            if (!GAS_WEB_APP_URL || GAS_WEB_APP_URL.includes("xxxx")) {
-                alert("🛑 提示：請先在 env.js 設定檔中填入您的真實 GAS Web App 網址！");
-                return;
-            }
-            
             const url = `${GAS_WEB_APP_URL}?action=verifyLogin&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&_t=${new Date().getTime()}`;
-            
             fetch(url)
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === "success" && res.data.role === "Admin") {
                         document.getElementById('admin-role-tag').innerText = `最高管理員 - ${res.data.name}`;
-                        document.getElementById('admin-role-tag').className = "bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-semibold";
                         loadPendingForms();
                         forcedFreshLoadHRProfiles(); 
                         loadAttendanceReports();
                     } else {
-                        alert("🛑 權限拒絕：系統偵測到您不具備 Admin 管理員權限，或尚未綁定此 LINE UID。");
                         document.body.innerHTML = `<div class="text-center p-20 text-red-600 font-bold text-xl">❌ 安全攔截：您無權存取人事管理後台。</div>`;
                     }
                 })
-                .catch(err => {
-                    console.error(err);
-                    alert("連線後端 API 失敗，請確認是否已正確發布新版本的 GAS 部署！");
-                });
+                .catch(() => alert("連線後端 API 失敗，請確認是否已正確發布最新版本的 GAS 部署！"));
         }
 
-        function formatDateTimeString(dateStr) {
-            if (!dateStr) return "";
-            try {
-                const d = new Date(dateStr);
-                if (isNaN(d.getTime())) return dateStr;
-                const yyyy = d.getFullYear();
-                const mm = String(d.getMonth() + 1).padStart(2, '0');
-                const dd = String(d.getDate()).padStart(2, '0');
-                const hh = String(d.getHours()).padStart(2, '0');
-                const min = String(d.getMinutes()).padStart(2, '0');
-                return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
-            } catch (e) { return dateStr; }
-        }
-
-        // 2. 載入待審核單據
-        function loadPendingForms() {
-            const tbody = document.getElementById('pending-table-body');
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-gray-400"><i class="fa-solid fa-spinner animate-spin mr-2"></i>更新資料中...</td></tr>`;
-
-            const url = `${GAS_WEB_APP_URL}?action=getPendingForms&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&_t=${new Date().getTime()}`;
-            fetch(url)
-                .then(res => res.json())
-                .then(res => {
-                    if (res.status === "success") {
-                        if (res.data.length === 0) {
-                            tbody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-gray-400">🎉 目前沒有任何待審核的請假或加班申請！</td></tr>`;
-                            return;
-                        }
-                        tbody.innerHTML = "";
-                        res.data.forEach(form => {
-                            tbody.innerHTML += `
-                                <tr class="hover:bg-gray-50/80 transition-colors">
-                                    <td class="p-3 font-medium text-gray-900">${form.name}<br><span class="text-xs text-gray-400 font-mono">${form.empId}</span></td>
-                                    <td class="p-3"><span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-md font-semibold">${form.formType}(${form.subType})</span></td>
-                                    <td class="p-3 text-xs leading-relaxed text-gray-600">
-                                        <span class="text-gray-400">起：</span>${formatDateTimeString(form.startTime)}<br>
-                                        <span class="text-gray-400">迄：</span>${formatDateTimeString(form.endTime)}<br>
-                                        <span class="text-indigo-600 font-bold">⏱️ 合計 ${form.totalHours} 小時</span>
-                                    </td>
-                                    <td class="p-3 max-w-xs truncate text-gray-500" title="${form.reason}">${form.reason || '無'}</td>
-                                    <td class="p-3 text-center space-x-1">
-                                        <button onclick="executeReview('${form.formId}', '已核准')" class="bg-green-600 hover:bg-green-700 text-white text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all"><i class="fa-solid fa-check mr-1"></i>准許</button>
-                                        <button onclick="executeReview('${form.formId}', '已拒絕')" class="bg-red-50 hover:bg-red-100 text-red-600 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all"><i class="fa-solid fa-xmark mr-1"></i>駁回</button>
-                                    </td>
-                                </tr>
-                            `;
-                        });
-                    }
-                });
-        }
-
-        // 3. 執行審核動作
-        function executeReview(formId, decision) {
-            if (!confirm(`確定要將此單據設定為【${decision}】嗎？`)) return;
-
-            fetch(GAS_WEB_APP_URL, {
-                method: "POST",
-                body: JSON.stringify({
-                    action: "reviewForm",
-                    lineUid: MOCK_LINE_UID,
-                    formId: formId,
-                    statusResult: decision
-                })
-            })
-            .then(res => res.json())
-            .then(res => {
-                if (res.status === "success") {
-                    alert(`單據 ${formId} 已成功改為：${decision}`);
-                    loadPendingForms();
-                } else { alert("審核失敗：" + res.message); }
-            });
-        }
-
-        // 4. 載入員工清單
-        let hrProfilesData = [];
         function forcedFreshLoadHRProfiles() {
             const tbody = document.getElementById('hr-table-body');
-            const url = `${GAS_WEB_APP_URL}?action=getHRProfiles&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&t=${new Date().getTime()}`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-gray-400">更新資料中...</td></tr>`;
             
+            const url = `${GAS_WEB_APP_URL}?action=getHRProfiles&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&t=${new Date().getTime()}`;
             fetch(url)
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === "success") {
-                        hrProfilesData = res.data;
-                        tbody.innerHTML = "";
+                        hrProfilesData = res.data; // 儲存至全域快取
+                        tbody.innerHTML = ""; // 💡 關鍵：清空舊畫面，避免重複渲染
+                        
                         res.data.forEach(emp => {
                             const statusColor = emp.status === "在職" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
                             const roleColor = emp.role === "Admin" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-800";
-                            
-                            let rawPhone = emp.phone ? emp.phone.toString().trim() : "";
-                            if (rawPhone.startsWith("'")) { rawPhone = rawPhone.substring(1); }
-                            const displayPhone = (rawPhone !== "" && rawPhone !== "無") ? rawPhone : '<span class="text-gray-300 italic">無</span>';
-
-                            // 確保代碼中傳遞工號時是完整的字串型態
                             const safeEmpId = emp.empId.toString().trim();
 
                             tbody.innerHTML += `
                                 <tr class="hover:bg-gray-50/80 transition-colors">
                                     <td class="p-3 font-semibold text-gray-800">${emp.name}<br><span class="text-xs text-gray-400 font-mono">${safeEmpId}</span></td>
                                     <td class="p-3 text-sm text-gray-600">${emp.dept}<br><span class="text-xs text-gray-500">${emp.title}</span></td>
-                                    <td class="p-3 font-mono text-xs text-gray-600">${displayPhone}</td>
-                                    <td class="p-3 font-mono text-xs text-gray-400 select-all">${emp.lineUid}</td>
+                                    <td class="p-3 font-mono text-xs text-gray-600">${emp.phone}</td>
+                                    <td class="p-3 font-mono text-xs text-gray-400">${emp.lineUid}</td>
                                     <td class="p-3 space-y-1">
                                         <span class="${statusColor} text-xs px-2 py-0.5 rounded-md font-medium block w-fit">${emp.status}</span>
                                         <span class="${roleColor} text-xs px-2 py-0.5 rounded-md font-medium block w-fit">${emp.role}</span>
                                     </td>
-                                    <td class="p-3 text-center" style="white-space: nowrap;">
-                                        <button onclick="openHREditModal('${safeEmpId}')" class="text-indigo-600 hover:text-indigo-900 text-xs font-medium bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-all inline-block mr-1">
+                                    <td class="p-3 text-center">
+                                        <button onclick="openHREditModal('${safeEmpId}')" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg text-xs font-medium mr-1">
                                             <i class="fa-solid fa-user-pen mr-1"></i>編輯
                                         </button>
-                                        <button onclick="deleteHRProfile('${safeEmpId}', '${emp.name}')" class="text-red-600 hover:text-red-900 text-xs font-medium bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-all inline-block">
+                                        <button onclick="deleteHRProfile('${safeEmpId}', '${emp.name}')" class="text-red-600 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg text-xs font-medium">
                                             <i class="fa-solid fa-trash-can mr-1"></i>刪除
                                         </button>
                                     </td>
@@ -377,78 +253,50 @@
                 });
         }
 
-        // 5. 開啟編輯彈窗
         function openHREditModal(empId = null) {
             const modal = document.getElementById('hr-modal');
-            const form = document.getElementById('hr-form');
-            form.reset();
+            document.getElementById('hr-form').reset();
 
             if (empId) {
                 document.getElementById('modal-title').innerText = "📝 編輯員工檔案";
                 document.getElementById('form-empId').readOnly = true;
-                document.getElementById('form-empId').className = "w-full border border-gray-200 bg-gray-50 text-gray-400 rounded-xl px-3 py-2 font-mono focus:outline-none";
+                document.getElementById('form-empId').className = "w-full border border-gray-200 bg-gray-50 text-gray-400 rounded-xl px-3 py-2 font-mono";
                 
-                // 🎯 關鍵修正：將兩端欄位通通轉為純字串移除前後空格比對，破除 0 開頭被當成數字造成的找不到錯誤
-                const targetId = empId.toString().trim();
-                const emp = hrProfilesData.find(e => e.empId.toString().trim() === targetId);
+                // 比對時全部去除單引號與空白，精準尋找
+                const targetId = empId.toString().replace(/^'/, "").trim();
+                const emp = hrProfilesData.find(e => e.empId.toString().replace(/^'/, "").trim() === targetId);
                 
                 if (emp) {
-                    document.getElementById('form-empId').value = emp.empId.toString().trim();
+                    document.getElementById('form-empId').value = emp.empId;
                     document.getElementById('form-name').value = emp.name;
                     document.getElementById('form-dept').value = emp.dept;
                     document.getElementById('form-title').value = emp.title;
                     document.getElementById('form-arrivalDate').value = emp.arrivalDate;
-                    
-                    let rawPhone = emp.phone ? emp.phone.toString().trim() : "";
-                    if (rawPhone.startsWith("'")) { rawPhone = rawPhone.substring(1); }
-                    document.getElementById('form-phone').value = (rawPhone !== "" && rawPhone !== "無") ? rawPhone : "";
-                    
-                    // 去除可能意外殘留的單引號，呈現在畫面上
-                    let rawLineUid = emp.lineUid ? emp.lineUid.toString().trim() : "";
-                    if (rawLineUid.startsWith("'")) { rawLineUid = rawLineUid.substring(1); }
-                    document.getElementById('form-lineUid').value = rawLineUid;
-                    
+                    document.getElementById('form-phone').value = emp.phone === "無" ? "" : emp.phone;
+                    document.getElementById('form-lineUid').value = emp.lineUid;
                     document.getElementById('form-status').value = emp.status;
                     document.getElementById('form-role').value = emp.role;
-                } else {
-                    console.error("找不到該員工對應的快取資料，工號: " + targetId);
                 }
             } else {
                 document.getElementById('modal-title').innerText = "➕ 新增全新員工檔案";
                 document.getElementById('form-empId').readOnly = false;
-                document.getElementById('form-empId').className = "w-full border border-gray-200 rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-indigo-500";
+                document.getElementById('form-empId').className = "w-full border border-gray-200 rounded-xl px-3 py-2 font-mono focus:border-indigo-500";
                 document.getElementById('form-arrivalDate').value = new Date().toISOString().split('T')[0];
             }
             modal.classList.remove('hidden');
         }
 
-        function closeHRModal() { document.getElementById('hr-modal').classList.add('hidden'); }
-
-        // 6. 儲存人事檔案
         function submitHRForm(event) {
             event.preventDefault();
             
-            const empIdValue = document.getElementById('form-empId').value.trim();
-            const phoneValue = document.getElementById('form-phone').value.trim();
-            const lineUidValue = document.getElementById('form-lineUid').value.trim();
-            
-            // 🎯 核心防禦：凡是可能帶 0 的字串欄位，儲存前一律加上 `'` 強制 Google 試算表以文字儲存
-            let finalEmpId = empIdValue.startsWith("'") ? empIdValue : "'" + empIdValue;
-            let finalLineUid = lineUidValue.startsWith("'") ? lineUidValue : "'" + lineUidValue;
-            
-            let finalPhone = "無";
-            if (phoneValue !== "") {
-                finalPhone = phoneValue.startsWith("'") ? phoneValue : "'" + phoneValue;
-            }
-            
             const empData = {
-                empId: finalEmpId,
+                empId: document.getElementById('form-empId').value.trim(),
                 name: document.getElementById('form-name').value.trim(),
                 dept: document.getElementById('form-dept').value.trim(),
                 title: document.getElementById('form-title').value.trim(),
                 arrivalDate: document.getElementById('form-arrivalDate').value,
-                phone: finalPhone, 
-                lineUid: finalLineUid,
+                phone: document.getElementById('form-phone').value.trim() || "無", 
+                lineUid: document.getElementById('form-lineUid').value.trim(),
                 status: document.getElementById('form-status').value,
                 role: document.getElementById('form-role').value
             };
@@ -460,83 +308,73 @@
             .then(res => res.json())
             .then(res => {
                 if (res.status === "success") {
-                    alert("員工檔案同步至試算表成功！");
+                    alert("員工檔案儲存成功！");
                     closeHRModal();
                     forcedFreshLoadHRProfiles();
                 } else { alert("儲存失敗：" + res.message); }
             });
         }
 
-        // 🗑️ 刪除員工人事檔案功能
         function deleteHRProfile(empId, name) {
-            if (!confirm(`⚠️ 警告：您確定要刪除員工【${name} (工號: ${empId})】的所有檔案嗎？\n此動作將同步從雲端資料庫中移除，且無法復原！`)) {
-                return;
-            }
+            if (!confirm(`⚠️ 確定要刪除員工【${name} (工號: ${empId})】嗎？`)) return;
 
             fetch(GAS_WEB_APP_URL, {
                 method: "POST",
-                body: JSON.stringify({
-                    action: "deleteHRProfile",
-                    lineUid: MOCK_LINE_UID,
-                    empId: empId.toString().trim()
-                })
+                body: JSON.stringify({ action: "deleteHRProfile", lineUid: MOCK_LINE_UID, empId: empId })
             })
             .then(res => res.json())
             .then(res => {
                 if (res.status === "success") {
-                    alert(`已成功刪除員工：${name}`);
+                    alert("已成功刪除員工資料！");
                     forcedFreshLoadHRProfiles(); 
-                } else {
-                    alert("刪除失敗：" + res.message);
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                alert("刪除請求失敗，請確認後端 GAS 已經成功重新發布為新版本！");
+                } else { alert("刪除失敗：" + res.message); }
             });
         }
 
-        // 7. 載入歷史出勤
+        function loadPendingForms() {
+            const tbody = document.getElementById('pending-table-body');
+            const url = `${GAS_WEB_APP_URL}?action=getPendingForms&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&_t=${new Date().getTime()}`;
+            fetch(url).then(res => res.json()).then(res => {
+                if (res.status === "success") {
+                    tbody.innerHTML = ""; // 💡 清空舊畫面
+                    if(res.data.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-gray-400">目前無待審核單據</td></tr>`;
+                        return;
+                    }
+                    res.data.forEach(form => {
+                        tbody.innerHTML += `<tr><td class="p-3">${form.name}</td><td class="p-3">${form.formType}</td><td class="p-3">${form.totalHours} 小時</td><td class="p-3">${form.reason}</td><td class="p-3 text-center"><button onclick="executeReview('${form.formId}','已核准')" class="bg-green-600 text-white px-2 py-1 rounded mr-1 text-xs">准許</button><button onclick="executeReview('${form.formId}','已拒絕')" class="bg-red-600 text-white px-2 py-1 rounded text-xs">駁回</button></td></tr>`;
+                    });
+                }
+            });
+        }
+
+        function executeReview(formId, decision) {
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "reviewForm", lineUid: MOCK_LINE_UID, formId: formId, statusResult: decision })
+            }).then(res => res.json()).then(res => { if(res.status === "success") { alert("審核成功"); loadPendingForms(); } });
+        }
+
         function loadAttendanceReports() {
             const tbody = document.getElementById('report-table-body');
             const url = `${GAS_WEB_APP_URL}?action=getAttendanceReports&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&_t=${new Date().getTime()}`;
-            
-            fetch(url)
-                .then(res => res.json())
-                .then(res => {
-                    if (res.status === "success") {
-                        tbody.innerHTML = "";
-                        if (res.data.length === 0) {
-                            tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-gray-400">目前尚無任何員工打卡數據。</td></tr>`;
-                            return;
-                        }
-                        res.data.forEach(log => {
-                            let typeBadge = log.type === "上班" ? 
-                                '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-semibold">上班</span>' : 
-                                '<span class="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded font-semibold">下班</span>';
-
-                            tbody.innerHTML += `
-                                <tr class="hover:bg-gray-50/60 transition-colors">
-                                    <td class="p-3 font-mono text-gray-500">${log.empId}</td>
-                                    <td class="p-3 font-medium text-gray-800">${log.name}</td>
-                                    <td class="p-3 font-mono text-gray-600">${formatDateTimeString(log.date)}</td>
-                                    <td class="p-3 font-mono text-gray-600 font-bold">${log.time}</td>
-                                    <td class="p-3">${typeBadge}</td>
-                                    <td class="p-3 text-xs text-gray-400 max-w-xs truncate" title="${log.memo}">${log.memo || '-'}</td>
-                                </tr>
-                            `;
-                        });
-                    }
-                });
+            fetch(url).then(res => res.json()).then(res => {
+                if (res.status === "success") {
+                    tbody.innerHTML = ""; // 💡 清空舊畫面
+                    res.data.forEach(log => {
+                        tbody.innerHTML += `<tr class="border-b border-gray-50"><td class="p-3 font-mono">${log.empId}</td><td class="p-3">${log.name}</td><td class="p-3">${log.date}</td><td class="p-3 font-bold">${log.time}</td><td class="p-3">${log.type}</td><td class="p-3 text-gray-400">${log.memo||'-'}</td></tr>`;
+                    });
+                }
+            });
         }
 
-        function switchTab(targetSectionId) {
-            document.querySelectorAll('.tab-content').forEach(section => section.classList.add('hidden'));
-            document.getElementById(targetSectionId).classList.remove('hidden');
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.className = "tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all";
-            });
-            document.getElementById('btn-' + targetSectionId).className = "tab-btn bg-white text-gray-800 px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all";
+        function closeHRModal() { document.getElementById('hr-modal').classList.add('hidden'); }
+        function copyLiffUrl() { navigator.clipboard.writeText(SYSTEM_ENV.LIFF_URL).then(() => alert("專屬 LIFF 網址已複製！")); }
+        function switchTab(id) {
+            document.querySelectorAll('.tab-content').forEach(s => s.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+            document.querySelectorAll('.tab-btn').forEach(b => b.className = "tab-btn text-gray-600 px-4 py-2 text-sm font-medium");
+            document.getElementById('btn-' + id).className = "tab-btn bg-white text-gray-800 px-4 py-2 rounded-lg text-sm font-medium shadow-sm shadow-gray-200";
         }
     </script>
 </body>
