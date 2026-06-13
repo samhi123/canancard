@@ -211,7 +211,7 @@
                 return;
             }
             navigator.clipboard.writeText(SYSTEM_ENV.LIFF_URL)
-                .then(() => alert(`📋 已成功複製該公司專屬 LIFF 網址：\n${SYSTEM_ENV.LIFF_URL}\n\n您可以直接發送給員工進行身份綁定。`))
+                .then(() => alert(`📋 已成功複製該公司專專屬 LIFF 網址：\n${SYSTEM_ENV.LIFF_URL}\n\n您可以直接發送給員工進行身份綁定。`))
                 .catch(err => alert("複製失敗，瀏覽器拒絕存取剪貼簿。"));
         }
 
@@ -222,7 +222,8 @@
                 return;
             }
             
-            const url = `${GAS_WEB_APP_URL}?action=verifyLogin&lineUid=${encodeURIComponent(MOCK_LINE_UID)}`;
+            // 🎯 加上動態時間戳，防止變更後的 API 請求被瀏覽器攔截
+            const url = `${GAS_WEB_APP_URL}?action=verifyLogin&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&_t=${new Date().getTime()}`;
             
             fetch(url)
                 .then(res => res.json())
@@ -231,7 +232,7 @@
                         document.getElementById('admin-role-tag').innerText = `最高管理員 - ${res.data.name}`;
                         document.getElementById('admin-role-tag').className = "bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-semibold";
                         loadPendingForms();
-                        forcedFreshLoadHRProfiles(); // 🎯 呼叫全新命名函數以破除快取
+                        forcedFreshLoadHRProfiles(); 
                         loadAttendanceReports();
                     } else {
                         alert("🛑 權限拒絕：系統偵測到您不具備 Admin 管理員權限，或尚未綁定此 LINE UID。");
@@ -240,7 +241,7 @@
                 })
                 .catch(err => {
                     console.error(err);
-                    alert("連線後端 API 失敗，請確認 env.js 中的網址是否正確，且後端 GAS 已發布新版本！");
+                    alert("連線後端 API 失敗，請確認是否已正確發布新版本的 GAS 部署！");
                 });
         }
 
@@ -263,7 +264,7 @@
             const tbody = document.getElementById('pending-table-body');
             tbody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-gray-400"><i class="fa-solid fa-spinner animate-spin mr-2"></i>更新資料中...</td></tr>`;
 
-            const url = `${GAS_WEB_APP_URL}?action=getPendingForms&lineUid=${encodeURIComponent(MOCK_LINE_UID)}`;
+            const url = `${GAS_WEB_APP_URL}?action=getPendingForms&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&_t=${new Date().getTime()}`;
             fetch(url)
                 .then(res => res.json())
                 .then(res => {
@@ -317,11 +318,11 @@
             });
         }
 
-        // 4. 🚀 全新命名函式：保證繞過瀏覽器舊快取
+        // 4. 載入員工清單
         let hrProfilesData = [];
         function forcedFreshLoadHRProfiles() {
             const tbody = document.getElementById('hr-table-body');
-            const url = `${GAS_WEB_APP_URL}?action=getHRProfiles&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&t=${new Date().getTime()}`; // 加上時間戳防快取
+            const url = `${GAS_WEB_APP_URL}?action=getHRProfiles&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&t=${new Date().getTime()}`;
             
             fetch(url)
                 .then(res => res.json())
@@ -334,30 +335,24 @@
                             const roleColor = emp.role === "Admin" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-800";
                             
                             let rawPhone = emp.phone ? emp.phone.toString().trim() : "";
-                            if (rawPhone.startsWith("'")) {
-                                rawPhone = rawPhone.substring(1);
-                            }
+                            if (rawPhone.startsWith("'")) { rawPhone = rawPhone.substring(1); }
+                            const displayPhone = (rawPhone !== "" && rawPhone !== "無") ? rawPhone : '<span class="text-gray-300 italic">無</span>';
 
-                            const displayPhone = (rawPhone !== "" && rawPhone !== "無") 
-                                ? rawPhone 
-                                : '<span class="text-gray-300 italic">無</span>';
-
-                            // 🚨 使用原生最直覺的基礎排版結構，強制渲染出兩個按鈕
                             tbody.innerHTML += `
                                 <tr class="hover:bg-gray-50/80 transition-colors">
                                     <td class="p-3 font-semibold text-gray-800">${emp.name}<br><span class="text-xs text-gray-400 font-mono">${emp.empId}</span></td>
                                     <td class="p-3 text-sm text-gray-600">${emp.dept}<br><span class="text-xs text-gray-500">${emp.title}</span></td>
                                     <td class="p-3 font-mono text-xs text-gray-600">${displayPhone}</td>
-                                    <td class="p-3 font-mono text-xs text-gray-400 select-all" title="雙擊可全選複製">${emp.lineUid}</td>
+                                    <td class="p-3 font-mono text-xs text-gray-400 select-all">${emp.lineUid}</td>
                                     <td class="p-3 space-y-1">
                                         <span class="${statusColor} text-xs px-2 py-0.5 rounded-md font-medium block w-fit">${emp.status}</span>
                                         <span class="${roleColor} text-xs px-2 py-0.5 rounded-md font-medium block w-fit">${emp.role}</span>
                                     </td>
-                                    <td class="p-3 text-center" style="text-align: center; white-space: nowrap;">
-                                        <button onclick="openHREditModal('${emp.empId}')" class="text-indigo-600 hover:text-indigo-900 text-xs font-medium bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-all" style="margin-right: 6px; display: inline-block;">
+                                    <td class="p-3 text-center" style="white-space: nowrap;">
+                                        <button onclick="openHREditModal('${emp.empId}')" class="text-indigo-600 hover:text-indigo-900 text-xs font-medium bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-all inline-block mr-1">
                                             <i class="fa-solid fa-user-pen mr-1"></i>編輯
                                         </button>
-                                        <button onclick="deleteHRProfile('${emp.empId}', '${emp.name}')" class="text-red-600 hover:text-red-900 text-xs font-medium bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-all" style="display: inline-block;">
+                                        <button onclick="deleteHRProfile('${emp.empId}', '${emp.name}')" class="text-red-600 hover:text-red-900 text-xs font-medium bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-all inline-block">
                                             <i class="fa-solid fa-trash-can mr-1"></i>刪除
                                         </button>
                                     </td>
@@ -388,9 +383,7 @@
                     document.getElementById('form-arrivalDate').value = emp.arrivalDate;
                     
                     let rawPhone = emp.phone ? emp.phone.toString().trim() : "";
-                    if (rawPhone.startsWith("'")) {
-                        rawPhone = rawPhone.substring(1);
-                    }
+                    if (rawPhone.startsWith("'")) { rawPhone = rawPhone.substring(1); }
                     document.getElementById('form-phone').value = (rawPhone !== "" && rawPhone !== "無") ? rawPhone : "";
                     
                     document.getElementById('form-lineUid').value = emp.lineUid;
@@ -450,6 +443,7 @@
                 return;
             }
 
+            // 🎯 發送請求，明確指定行動代碼為 deleteHRProfile
             fetch(GAS_WEB_APP_URL, {
                 method: "POST",
                 body: JSON.stringify({
@@ -469,14 +463,14 @@
             })
             .catch(err => {
                 console.error(err);
-                alert("刪除請求失敗，請確認網路連線或後端程式碼。");
+                alert("刪除請求失敗，請確認後端 GAS 已經成功重新發布為新版本！");
             });
         }
 
         // 7. 載入歷史出勤
         function loadAttendanceReports() {
             const tbody = document.getElementById('report-table-body');
-            const url = `${GAS_WEB_APP_URL}?action=getAttendanceReports&lineUid=${encodeURIComponent(MOCK_LINE_UID)}`;
+            const url = `${GAS_WEB_APP_URL}?action=getAttendanceReports&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&_t=${new Date().getTime()}`;
             
             fetch(url)
                 .then(res => res.json())
