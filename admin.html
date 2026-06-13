@@ -343,6 +343,7 @@
                                 ? rawPhone 
                                 : '<span class="text-gray-300 italic">無</span>';
 
+                            // 🎯 修正核心：確保在 HTML 結構中，明確塞入「編輯」與新增的「刪除」按鈕
                             tbody.innerHTML += `
                                 <tr class="hover:bg-gray-50/80 transition-colors">
                                     <td class="p-3 font-semibold text-gray-800">${emp.name}<br><span class="text-xs text-gray-400 font-mono">${emp.empId}</span></td>
@@ -353,9 +354,15 @@
                                         <span class="${statusColor} text-xs px-2 py-0.5 rounded-md font-medium block w-fit">${emp.status}</span>
                                         <span class="${roleColor} text-xs px-2 py-0.5 rounded-md font-medium block w-fit">${emp.role}</span>
                                     </td>
-                                    <td class="p-3 text-center space-x-1">
-                                        <button onclick="openHREditModal('${emp.empId}')" class="text-indigo-600 hover:text-indigo-900 text-xs font-medium bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-all"><i class="fa-solid fa-user-pen mr-1"></i>編輯</button>
-                                        <button onclick="deleteHRProfile('${emp.empId}', '${emp.name}')" class="text-red-600 hover:text-red-900 text-xs font-medium bg-red-50 hover:bg-red-100 px-2 py-1 rounded-md transition-all"><i class="fa-solid fa-trash-can mr-1"></i>刪除</button>
+                                    <td class="p-3 text-center">
+                                        <div class="flex items-center justify-center gap-1.5">
+                                            <button onclick="openHREditModal('${emp.empId}')" class="text-indigo-600 hover:text-indigo-900 text-xs font-medium bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-all flex items-center">
+                                                <i class="fa-solid fa-user-pen mr-1"></i>編輯
+                                            </button>
+                                            <button onclick="deleteHRProfile('${emp.empId}', '${emp.name}')" class="text-red-600 hover:text-red-900 text-xs font-medium bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-all flex items-center">
+                                                <i class="fa-solid fa-trash-can mr-1"></i>刪除
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             `;
@@ -363,156 +370,3 @@
                     }
                 });
         }
-
-        // 5. 開啟編輯彈窗
-        function openHREditModal(empId = null) {
-            const modal = document.getElementById('hr-modal');
-            const form = document.getElementById('hr-form');
-            form.reset();
-
-            if (empId) {
-                document.getElementById('modal-title').innerText = "📝 編輯員工檔案";
-                document.getElementById('form-empId').readOnly = true;
-                document.getElementById('form-empId').className = "w-full border border-gray-200 bg-gray-50 text-gray-400 rounded-xl px-3 py-2 font-mono focus:outline-none";
-                
-                const emp = hrProfilesData.find(e => e.empId === empId);
-                if (emp) {
-                    document.getElementById('form-empId').value = emp.empId;
-                    document.getElementById('form-name').value = emp.name;
-                    document.getElementById('form-dept').value = emp.dept;
-                    document.getElementById('form-title').value = emp.title;
-                    document.getElementById('form-arrivalDate').value = emp.arrivalDate;
-                    
-                    // 🔒 彈窗帶入時，也要把之前的單引號移除，方便正常閱讀與再次編輯
-                    let rawPhone = emp.phone ? emp.phone.toString().trim() : "";
-                    if (rawPhone.startsWith("'")) {
-                        rawPhone = rawPhone.substring(1);
-                    }
-                    document.getElementById('form-phone').value = (rawPhone !== "" && rawPhone !== "無") ? rawPhone : "";
-                    
-                    document.getElementById('form-lineUid').value = emp.lineUid;
-                    document.getElementById('form-status').value = emp.status;
-                    document.getElementById('form-role').value = emp.role;
-                }
-            } else {
-                document.getElementById('modal-title').innerText = "➕ 新增全新員工檔案";
-                document.getElementById('form-empId').readOnly = false;
-                document.getElementById('form-empId').className = "w-full border border-gray-200 rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-indigo-500";
-                document.getElementById('form-arrivalDate').value = new Date().toISOString().split('T')[0];
-            }
-            modal.classList.remove('hidden');
-        }
-
-        function closeHRModal() { document.getElementById('hr-modal').classList.add('hidden'); }
-
-        // 6. 儲存人事檔案
-        function submitHRForm(event) {
-            event.preventDefault();
-            const phoneValue = document.getElementById('form-phone').value.trim();
-            
-            // 🎯 關鍵防呆優化：只要有填電話，最前面強制加上 "'"，防止試算表自動吃掉開頭的 0
-            let finalPhone = "無";
-            if (phoneValue !== "") {
-                finalPhone = phoneValue.startsWith("'") ? phoneValue : "'" + phoneValue;
-            }
-            
-            const empData = {
-                empId: document.getElementById('form-empId').value.trim(),
-                name: document.getElementById('form-name').value.trim(),
-                dept: document.getElementById('form-dept').value.trim(),
-                title: document.getElementById('form-title').value.trim(),
-                arrivalDate: document.getElementById('form-arrivalDate').value,
-                phone: finalPhone, 
-                lineUid: document.getElementById('form-lineUid').value.trim(),
-                status: document.getElementById('form-status').value,
-                role: document.getElementById('form-role').value
-            };
-
-            fetch(GAS_WEB_APP_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "saveHRProfile", lineUid: MOCK_LINE_UID, empData: empData })
-            })
-            .then(res => res.json())
-            .then(res => {
-                if (res.status === "success") {
-                    alert("員工檔案同步至試算表成功！");
-                    closeHRModal();
-                    loadHRProfiles();
-                } else { alert("儲存失敗：" + res.message); }
-            });
-        }
-
-        // 🗑️ 刪除員工人事檔案功能
-        function deleteHRProfile(empId, name) {
-            if (!confirm(`⚠️ 警告：您確定要刪除員工【${name} (工號: ${empId})】的所有檔案嗎？\n此動作將同步從雲端資料庫中移除，且無法復原！`)) {
-                return;
-            }
-
-            fetch(GAS_WEB_APP_URL, {
-                method: "POST",
-                body: JSON.stringify({
-                    action: "deleteHRProfile",
-                    lineUid: MOCK_LINE_UID,
-                    empId: empId
-                })
-            })
-            .then(res => res.json())
-            .then(res => {
-                if (res.status === "success") {
-                    alert(`已成功刪除員工：${name}`);
-                    loadHRProfiles(); 
-                } else {
-                    alert("刪除失敗：" + res.message);
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                alert("刪除請求失敗，請確認網路連線或後端程式碼。");
-            });
-        }
-
-        // 7. 載入歷史出勤
-        function loadAttendanceReports() {
-            const tbody = document.getElementById('report-table-body');
-            const url = `${GAS_WEB_APP_URL}?action=getAttendanceReports&lineUid=${encodeURIComponent(MOCK_LINE_UID)}`;
-            
-            fetch(url)
-                .then(res => res.json())
-                .then(res => {
-                    if (res.status === "success") {
-                        tbody.innerHTML = "";
-                        if (res.data.length === 0) {
-                            tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-gray-400">目前尚無任何員工打卡數據。</td></tr>`;
-                            return;
-                        }
-                        res.data.forEach(log => {
-                            let typeBadge = log.type === "上班" ? 
-                                '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-semibold">上班</span>' : 
-                                '<span class="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded font-semibold">下班</span>';
-
-                            tbody.innerHTML += `
-                                <tr class="hover:bg-gray-50/60 transition-colors">
-                                    <td class="p-3 font-mono text-gray-500">${log.empId}</td>
-                                    <td class="p-3 font-medium text-gray-800">${log.name}</td>
-                                    <td class="p-3 font-mono text-gray-600">${formatDateTimeString(log.date)}</td>
-                                    <td class="p-3 font-mono text-gray-600 font-bold">${log.time}</td>
-                                    <td class="p-3">${typeBadge}</td>
-                                    <td class="p-3 text-xs text-gray-400 max-w-xs truncate" title="${log.memo}">${log.memo || '-'}</td>
-                                </tr>
-                            `;
-                        });
-                    }
-                });
-        }
-
-        function switchTab(targetSectionId) {
-            document.querySelectorAll('.tab-content').forEach(section => section.classList.add('hidden'));
-            document.getElementById(targetSectionId).classList.remove('hidden');
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.className = "tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all";
-            });
-            document.getElementById('btn-' + targetSectionId).className = "tab-btn bg-white text-gray-800 px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all";
-        }
-    </script>
-</body>
-</html>
