@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>企業雲端人事後台管理系統</title>
+    <!-- 引入 Tailwind CSS 增強美觀介面 -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- 引入 Font Awesome 圖示 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- 🎯 關鍵核心：在此處引入外掛的環境設定檔 -->
     <script src="env.js"></script>
 
     <style>
@@ -18,6 +21,7 @@
 <body class="p-4 md:p-8">
 
     <div class="max-w-6xl mx-auto">
+        <!-- 頂部標題區 -->
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-200 pb-4 mb-6 gap-2">
             <div>
                 <h1 class="text-2xl font-bold text-gray-800">
@@ -31,6 +35,7 @@
             </div>
         </div>
 
+        <!-- 功能分頁切換鈕 -->
         <div class="flex space-x-2 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
             <button onclick="switchTab('pending-section')" id="btn-pending-section" class="tab-btn bg-white text-gray-800 px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all">
                 <i class="fa-solid fa-file-signature mr-1"></i>待審核單據
@@ -43,6 +48,7 @@
             </button>
         </div>
 
+        <!-- 分頁一：待審核單據 -->
         <div id="pending-section" class="tab-content bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-bold text-gray-700">即時待審名單</h2>
@@ -70,6 +76,7 @@
             </div>
         </div>
 
+        <!-- 分頁二：人事檔案維護 -->
         <div id="hr-section" class="tab-content hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
                 <h2 class="text-lg font-bold text-gray-700">全體員工清單</h2>
@@ -99,6 +106,7 @@
             </div>
         </div>
 
+        <!-- 分頁三：歷史出勤報表 -->
         <div id="report-section" class="tab-content hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-bold text-gray-700">全體歷史打卡追蹤</h2>
@@ -124,12 +132,14 @@
         </div>
     </div>
 
+    <!-- 人事編輯彈窗 (Modal) -->
     <div id="hr-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
             <h3 id="modal-title" class="text-lg font-bold text-gray-800 mb-4">編輯員工資料</h3>
             <form id="hr-form" onsubmit="submitHRForm(event)" class="space-y-3 text-sm">
                 <div>
                     <label class="block text-gray-600 mb-1 font-medium">員工編號 (不可重複)</label>
+                    <!-- 變更為 text 型態，允許開頭為 0 的編號輸入 -->
                     <input type="text" id="form-empId" required class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
@@ -158,6 +168,7 @@
                 </div>
                 <div>
                     <label class="block text-gray-600 mb-1 font-medium">LINE User ID</label>
+                    <!-- 允許字串格式輸入，保留開頭 0 -->
                     <input type="text" id="form-lineUid" required class="w-full border border-gray-200 rounded-xl px-3 py-2 font-mono text-xs focus:outline-none focus:border-indigo-500">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
@@ -184,6 +195,7 @@
         </div>
     </div>
 
+    <!-- 前端控制 JavaScript -->
     <script>
         if (typeof SYSTEM_ENV === 'undefined') {
             alert("🛑 嚴重系統錯誤：找不到 env.js 環境設定檔，請檢查檔案是否存在於同目錄中！");
@@ -222,7 +234,6 @@
                 return;
             }
             
-            // 🎯 強制加上動態時間戳，防止變更後的驗證被舊快取攔截
             const url = `${GAS_WEB_APP_URL}?action=verifyLogin&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&_t=${new Date().getTime()}`;
             
             fetch(url)
@@ -338,9 +349,12 @@
                             if (rawPhone.startsWith("'")) { rawPhone = rawPhone.substring(1); }
                             const displayPhone = (rawPhone !== "" && rawPhone !== "無") ? rawPhone : '<span class="text-gray-300 italic">無</span>';
 
+                            // 確保代碼中傳遞工號時是完整的字串型態
+                            const safeEmpId = emp.empId.toString().trim();
+
                             tbody.innerHTML += `
                                 <tr class="hover:bg-gray-50/80 transition-colors">
-                                    <td class="p-3 font-semibold text-gray-800">${emp.name}<br><span class="text-xs text-gray-400 font-mono">${emp.empId}</span></td>
+                                    <td class="p-3 font-semibold text-gray-800">${emp.name}<br><span class="text-xs text-gray-400 font-mono">${safeEmpId}</span></td>
                                     <td class="p-3 text-sm text-gray-600">${emp.dept}<br><span class="text-xs text-gray-500">${emp.title}</span></td>
                                     <td class="p-3 font-mono text-xs text-gray-600">${displayPhone}</td>
                                     <td class="p-3 font-mono text-xs text-gray-400 select-all">${emp.lineUid}</td>
@@ -349,10 +363,10 @@
                                         <span class="${roleColor} text-xs px-2 py-0.5 rounded-md font-medium block w-fit">${emp.role}</span>
                                     </td>
                                     <td class="p-3 text-center" style="white-space: nowrap;">
-                                        <button onclick="openHREditModal('${emp.empId}')" class="text-indigo-600 hover:text-indigo-900 text-xs font-medium bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-all inline-block mr-1">
+                                        <button onclick="openHREditModal('${safeEmpId}')" class="text-indigo-600 hover:text-indigo-900 text-xs font-medium bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-all inline-block mr-1">
                                             <i class="fa-solid fa-user-pen mr-1"></i>編輯
                                         </button>
-                                        <button onclick="deleteHRProfile('${emp.empId}', '${emp.name}')" class="text-red-600 hover:text-red-900 text-xs font-medium bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-all inline-block">
+                                        <button onclick="deleteHRProfile('${safeEmpId}', '${emp.name}')" class="text-red-600 hover:text-red-900 text-xs font-medium bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-all inline-block">
                                             <i class="fa-solid fa-trash-can mr-1"></i>刪除
                                         </button>
                                     </td>
@@ -374,9 +388,12 @@
                 document.getElementById('form-empId').readOnly = true;
                 document.getElementById('form-empId').className = "w-full border border-gray-200 bg-gray-50 text-gray-400 rounded-xl px-3 py-2 font-mono focus:outline-none";
                 
-                const emp = hrProfilesData.find(e => e.empId === empId);
+                // 🎯 關鍵修正：將兩端欄位通通轉為純字串移除前後空格比對，破除 0 開頭被當成數字造成的找不到錯誤
+                const targetId = empId.toString().trim();
+                const emp = hrProfilesData.find(e => e.empId.toString().trim() === targetId);
+                
                 if (emp) {
-                    document.getElementById('form-empId').value = emp.empId;
+                    document.getElementById('form-empId').value = emp.empId.toString().trim();
                     document.getElementById('form-name').value = emp.name;
                     document.getElementById('form-dept').value = emp.dept;
                     document.getElementById('form-title').value = emp.title;
@@ -386,9 +403,15 @@
                     if (rawPhone.startsWith("'")) { rawPhone = rawPhone.substring(1); }
                     document.getElementById('form-phone').value = (rawPhone !== "" && rawPhone !== "無") ? rawPhone : "";
                     
-                    document.getElementById('form-lineUid').value = emp.lineUid;
+                    // 去除可能意外殘留的單引號，呈現在畫面上
+                    let rawLineUid = emp.lineUid ? emp.lineUid.toString().trim() : "";
+                    if (rawLineUid.startsWith("'")) { rawLineUid = rawLineUid.substring(1); }
+                    document.getElementById('form-lineUid').value = rawLineUid;
+                    
                     document.getElementById('form-status').value = emp.status;
                     document.getElementById('form-role').value = emp.role;
+                } else {
+                    console.error("找不到該員工對應的快取資料，工號: " + targetId);
                 }
             } else {
                 document.getElementById('modal-title').innerText = "➕ 新增全新員工檔案";
@@ -404,7 +427,14 @@
         // 6. 儲存人事檔案
         function submitHRForm(event) {
             event.preventDefault();
+            
+            const empIdValue = document.getElementById('form-empId').value.trim();
             const phoneValue = document.getElementById('form-phone').value.trim();
+            const lineUidValue = document.getElementById('form-lineUid').value.trim();
+            
+            // 🎯 核心防禦：凡是可能帶 0 的字串欄位，儲存前一律加上 `'` 強制 Google 試算表以文字儲存
+            let finalEmpId = empIdValue.startsWith("'") ? empIdValue : "'" + empIdValue;
+            let finalLineUid = lineUidValue.startsWith("'") ? lineUidValue : "'" + lineUidValue;
             
             let finalPhone = "無";
             if (phoneValue !== "") {
@@ -412,13 +442,13 @@
             }
             
             const empData = {
-                empId: document.getElementById('form-empId').value.trim(),
+                empId: finalEmpId,
                 name: document.getElementById('form-name').value.trim(),
                 dept: document.getElementById('form-dept').value.trim(),
                 title: document.getElementById('form-title').value.trim(),
                 arrivalDate: document.getElementById('form-arrivalDate').value,
                 phone: finalPhone, 
-                lineUid: document.getElementById('form-lineUid').value.trim(),
+                lineUid: finalLineUid,
                 status: document.getElementById('form-status').value,
                 role: document.getElementById('form-role').value
             };
@@ -443,13 +473,12 @@
                 return;
             }
 
-            // 🎯 特意附加動態亂數，強迫每一次 POST 請求也絕不走舊的快取通道
             fetch(GAS_WEB_APP_URL, {
                 method: "POST",
                 body: JSON.stringify({
                     action: "deleteHRProfile",
                     lineUid: MOCK_LINE_UID,
-                    empId: empId
+                    empId: empId.toString().trim()
                 })
             })
             .then(res => res.json())
