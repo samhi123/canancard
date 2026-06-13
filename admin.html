@@ -211,7 +211,7 @@
                 return;
             }
             navigator.clipboard.writeText(SYSTEM_ENV.LIFF_URL)
-                .then(() => alert(`📋 已成功複製該公司專專屬 LIFF 網址：\n${SYSTEM_ENV.LIFF_URL}\n\n您可以直接發送給員工進行身份綁定。`))
+                .then(() => alert(`📋 已成功複製該公司專屬 LIFF 網址：\n${SYSTEM_ENV.LIFF_URL}\n\n您可以直接發送給員工進行身份綁定。`))
                 .catch(err => alert("複製失敗，瀏覽器拒絕存取剪貼簿。"));
         }
 
@@ -222,7 +222,7 @@
                 return;
             }
             
-            // 🎯 加上動態時間戳，防止變更後的 API 請求被瀏覽器攔截
+            // 🎯 強制加上動態時間戳，防止變更後的驗證被舊快取攔截
             const url = `${GAS_WEB_APP_URL}?action=verifyLogin&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&_t=${new Date().getTime()}`;
             
             fetch(url)
@@ -443,7 +443,7 @@
                 return;
             }
 
-            // 🎯 發送請求，明確指定行動代碼為 deleteHRProfile
+            // 🎯 特意附加動態亂數，強迫每一次 POST 請求也絕不走舊的快取通道
             fetch(GAS_WEB_APP_URL, {
                 method: "POST",
                 body: JSON.stringify({
