@@ -3,271 +3,459 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>人事後台管理系統</title>
-    <!-- 引入 Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 FontAwesome 圖標 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+    <title>雲端人事後台管理系統</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f9fafb; }
+        .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        th, td { white-space: nowrap; }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans h-screen flex flex-col overflow-hidden">
+<body class="p-4 md:p-8">
 
-    <!-- 頂部功能切換列 -->
-    <div class="bg-slate-900 text-white px-4 py-3 flex items-center justify-between shrink-0 shadow-md">
-        <div class="flex items-center space-x-2">
-            <i class="fa-solid fa-gears text-indigo-400 text-base"></i>
-            <span class="font-bold tracking-wide text-sm">人事後台</span>
-        </div>
-        <div class="flex space-x-1.5">
-            <button onclick="switchTab('approval')" id="mbn-approval" class="px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold transition">
-                待審核 <span id="mbadge-count" class="bg-red-500 text-white px-1.5 py-0.2 rounded-full hidden text-[10px]">0</span>
-            </button>
-            <button onclick="switchTab('records')" id="mbn-records" class="px-3 py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-medium transition">
-                出勤報表
-            </button>
-        </div>
-    </div>
-
-    <!-- 標題數據列 -->
-    <header class="bg-white border-b border-gray-200 py-3 px-4 flex items-center justify-between shrink-0">
-        <h1 class="font-black text-gray-800 text-base" id="current-title">待審核表單中心</h1>
-        <span class="text-[11px] text-gray-400 font-mono" id="live-time">2026-06-13 00:00:00</span>
-    </header>
-
-    <!-- 主內容滾動區 -->
-    <main class="flex-1 overflow-y-auto p-4 pb-12">
-        
-        <!-- 頁面 A：待審核表單 (徹底揚棄傳統表格，100% 採用響應式卡片) -->
-        <section id="tab-approval" class="space-y-3">
-            <div id="approval-list-container-mobile" class="space-y-3">
-                <div class="text-center text-gray-400 py-12 bg-white rounded-2xl border border-gray-200">
-                    <i class="fa-solid fa-spinner fa-spin mr-2"></i>正在從雲端拉取申請單...
-                </div>
+    <div class="max-w-6xl mx-auto">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-200 pb-4 mb-6 gap-2">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800"><i class="fa-solid : fa-user-shield text-indigo-600 mr-2"></i>待審核表單中心</h1>
+                <p class="text-sm text-gray-500 mt-1">權限角色：<span id="admin-role-tag" class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-xs font-semibold">驗證中...</span></p>
             </div>
-        </section>
+            <div class="text-right">
+                <span id="current-time-clock" class="text-sm font-mono text-gray-500 bg-white px-3 py-1.5 rounded-lg shadow-sm border border-gray-100"></span>
+            </div>
+        </div>
 
-        <!-- 頁面 B：出勤報表 -->
-        <section id="tab-records" class="hidden space-y-3">
-            <div class="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-                <button onclick="loadAttendanceReports()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm transition">
-                    <i class="fa-solid fa-magnifying-glass mr-1"></i>更新 / 載入出勤日誌
+        <div class="flex space-x-2 mb-6 bg-gray-100 p-1 rounded-xl w-fit">
+            <button onclick="switchTab('pending-section')" id="btn-pending-section" class="tab-btn bg-white text-gray-800 px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all">
+                <i class="fa-solid fa-file-signature mr-1"></i>待審核單據
+            </button>
+            <button onclick="switchTab('hr-section')" id="btn-hr-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                <i class="fa-solid fa-users-gear mr-1"></i>人事檔案維護
+            </button>
+            <button onclick="switchTab('report-section')" id="btn-report-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                <i class="fa-solid fa-business-time mr-1"></i>歷史出勤報表
+            </button>
+        </div>
+
+        <div id="pending-section" class="tab-content bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-700">即時待審名單</h2>
+                <button onclick="loadPendingForms()" class="text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-3 py-1.5 rounded-lg font-medium transition-all">
+                    <i class="fa-solid fa-rotate mr-1"></i>重新整理
                 </button>
             </div>
             
-            <!-- 報表支援橫向滑動，防止欄位擠壓 -->
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div class="overflow-x-auto w-full">
-                    <table class="w-full text-left border-collapse text-xs min-w-[500px]">
-                        <thead class="bg-gray-50 text-gray-500 font-bold border-b border-gray-200">
-                            <tr>
-                                <th class="p-3">姓名</th>
-                                <th class="p-3">日期</th>
-                                <th class="p-3">時間</th>
-                                <th class="p-3">類型</th>
-                                <th class="p-3">備註</th>
-                            </tr>
-                        </thead>
-                        <tbody id="report-list-tbody" class="divide-y divide-gray-100 text-gray-700">
-                            <tr><td colspan="5" class="p-4 text-center text-gray-400">尚未載入出勤數據。</td></tr>
-                        </tbody>
-                    </table>
-                </div>
+            <div class="table-container">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-sm font-semibold border-b border-gray-100">
+                            <th class="p-3">申請人</th>
+                            <th class="p-3">表單類型</th>
+                            <th class="p-3">詳細時間與時數</th>
+                            <th class="p-3">事由 / 備註</th>
+                            <th class="p-3 text-center">審核決策</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pending-table-body" class="text-gray-700 text-sm divide-y divide-gray-50">
+                        <tr>
+                            <td colspan="5" class="text-center p-8 text-gray-400">正在安全連線至 Google 試算表載入資料...</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-        </section>
-    </main>
+        </div>
 
-    <!-- JavaScript 邏輯區 -->
+        <div id="hr-section" class="tab-content hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
+                <h2 class="text-lg font-bold text-gray-700">全體員工清單</h2>
+                <button onclick="openHREditModal()" class="bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2 rounded-xl font-medium transition-all shadow-sm shadow-green-100">
+                    <i class="fa-solid fa-user-plus mr-1"></i>新增員工檔案
+                </button>
+            </div>
+
+            <div class="table-container">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-sm font-semibold border-b border-gray-100">
+                            <th class="p-3">工號/姓名</th>
+                            <th class="p-3">部門/職稱</th>
+                            <th class="p-3">聯絡電話</th>
+                            <th class="p-3">LINE UID (系統綁定憑證)</th>
+                            <th class="p-3">狀態/權限</th>
+                            <th class="p-3 text-center">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hr-table-body" class="text-gray-700 text-sm divide-y divide-gray-50">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="report-section" class="tab-content hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-700">全體歷史打卡追蹤</h2>
+                <button onclick="loadAttendanceReports()" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg font-medium transition-all">
+                    <i class="fa-solid fa-arrow-down-9-1 mr-1"></i>最新紀錄在前
+                </button>
+            </div>
+
+            <div class="table-container">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-sm font-semibold border-b border-gray-100">
+                            <th class="p-3">員工編號</th>
+                            <th class="p-3">姓名</th>
+                            <th class="p-3">打卡日期</th>
+                            <th class="p-3">打卡時間</th>
+                            <th class="p-3">打卡類型</th>
+                            <th class="p-3">打卡備註說明</th>
+                        </tr>
+                    </thead>
+                    <tbody id="report-table-body" class="text-gray-700 text-sm divide-y divide-gray-50">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="hr-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
+            <h3 id="modal-title" class="text-lg font-bold text-gray-800 mb-4">編輯員工資料</h3>
+            <form id="hr-form" onsubmit="submitHRForm(event)" class="space-y-3 text-sm">
+                <div>
+                    <label class="block text-gray-600 mb-1 font-medium">員工編號 (不可重複)</label>
+                    <input type="text" id="form-empId" required class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-gray-600 mb-1 font-medium">姓名</label>
+                        <input type="text" id="form-name" required class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 mb-1 font-medium">部門</label>
+                        <input type="text" id="form-dept" required class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-gray-600 mb-1 font-medium">職稱</label>
+                        <input type="text" id="form-title" required class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 mb-1 font-medium">到職日期</label>
+                        <input type="date" id="form-arrivalDate" required class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-gray-600 mb-1 font-medium">聯絡電話</label>
+                    <input type="tel" id="form-phone" class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-gray-600 mb-1 font-medium">LINE User ID (綁定身分用)</label>
+                    <input type="text" id="form-lineUid" required class="w-full border border-gray-200 rounded-xl px-3 py-2 font-mono text-xs focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-gray-600 mb-1 font-medium">在職狀態</label>
+                        <select id="form-status" class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                            <option value="在職">在職</option>
+                            <option value="離職">離職</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 mb-1 font-medium">系統權限設定</label>
+                        <select id="form-role" class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                            <option value="User">User (一般員工)</option>
+                            <option value="Admin">Admin (後台管理員)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex space-x-2 pt-4 justify-end">
+                    <button type="button" onclick="closeHRModal()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-xl transition-all">取消</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-all shadow-md shadow-indigo-100">儲存人事檔案</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
-        // --- 1. 全域變數宣告 ---
-        let GAS_WEB_APP_URL = "";
-        const currentAdminName = "李四美"; 
+        // ⚠️ 請在此處填入您部署成功的 Google Apps Script Web App 網址
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/xxxx/exec"; 
+        
+        // 測試用專用 LINE UID（正式上線時，此處會由 LIFF 自動取得傳入）
+        const MOCK_LINE_UID = "填入你的LINE_UID_測試用"; 
 
-        // --- 2. 網頁事件監聽 ---
-        window.addEventListener('DOMContentLoaded', () => {
-            startLiveTime();
+        // 頁面初始化
+        window.onload = function() {
+            // 每秒更新時鐘
+            setInterval(() => {
+                const now = new Date();
+                document.getElementById('current-time-clock').innerText = "⏱️ 系統時間：" + now.toLocaleString('zh-TW', {hour12:false});
+            }, 1000);
+
+            // 啟動身分驗證並載入資料
+            verifyAdminIdentity();
+        };
+
+        // 1. 驗證管理員身分
+        function verifyAdminIdentity() {
+            const url = `${GAS_WEB_APP_URL}?action=verifyLogin&lineUid=${encodeURIComponent(MOCK_LINE_UID)}`;
             
-            // 安全載入環境變數 env.txt
-            fetch('env.txt')
-                .then(response => {
-                    if (!response.ok) throw new Error('找不到 env.txt 檔案');
-                    return response.text();
+            fetch(url)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === "success" && res.data.role === "Admin") {
+                        document.getElementById('admin-role-tag').innerText = `最高管理員 - ${res.data.name}`;
+                        document.getElementById('admin-role-tag').className = "bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-semibold";
+                        // 驗證成功後載入所有分頁數據
+                        loadPendingForms();
+                        loadHRProfiles();
+                        loadAttendanceReports();
+                    } else {
+                        alert("🛑 權限拒絕：系統偵測到您不具備 Admin 管理員權限，或尚未綁定此 LINE UID。");
+                        document.body.innerHTML = `<div class="text-center p-20 text-red-600 font-bold text-xl">❌ 安全攔截：您無權存取人事管理後台。</div>`;
+                    }
                 })
-                .then(url => {
-                    GAS_WEB_APP_URL = url.trim();
-                    console.log("後台 GAS 網址加載成功:", GAS_WEB_APP_URL);
-                    fetchPendingForms(); 
-                })
-                .catch(error => {
-                    console.error("後台初始化失敗:", error);
-                    document.getElementById('approval-list-container-mobile').innerHTML = `
-                        <div class="p-4 text-center text-red-500 font-bold bg-white rounded-2xl border">
-                            ⚠️ 錯誤：無法載入 env.txt 設定檔。
-                        </div>`;
+                .catch(err => {
+                    console.error(err);
+                    alert("連線後端 API 失敗，請確認 GAS_WEB_APP_URL 是否填寫正確，且已發布新版本！");
                 });
-        });
-
-        // --- 3. 核心功能函式定義 ---
-        function fetchPendingForms() {
-            if (!GAS_WEB_APP_URL) return;
-            const container = document.getElementById('approval-list-container-mobile');
-            container.innerHTML = `
-                <div class="text-center text-gray-400 py-12 bg-white rounded-2xl border border-gray-200">
-                    <i class="fa-solid fa-spinner fa-spin mr-2"></i>正在同步 Google 試算表資料...
-                </div>`;
-
-            fetch(`${GAS_WEB_APP_URL}?action=getPendingForms`)
-            .then(response => response.json())
-            .then(res => {
-                if (res.status === "success") {
-                    renderApprovalCards(res.data);
-                } else {
-                    container.innerHTML = `<div class="p-4 text-center text-red-500 bg-white border rounded-2xl">載入失敗：${res.message}</div>`;
-                }
-            })
-            .catch(error => {
-                console.error("撈取失敗:", error);
-                container.innerHTML = `<div class="p-4 text-center text-red-500 bg-white border rounded-2xl">無法連線至雲端資料庫，請確認 GAS 是否成功發布。</div>`;
-            });
         }
 
-        // 全面卡片化渲染
-        function renderApprovalCards(forms) {
-            const container = document.getElementById('approval-list-container-mobile');
-            const mBadge = document.getElementById('mbadge-count');
-            
-            if (!forms || forms.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center text-gray-400 py-12 bg-white rounded-2xl border border-gray-200">
-                        <div class="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center text-xl mx-auto mb-2">
-                            <i class="fa-solid fa-check"></i>
-                        </div>
-                        <span class="text-sm font-bold text-gray-500">目前沒有待審核的表單！</span>
-                    </div>`;
-                mBadge.classList.add('hidden');
-                return;
-            }
-
-            mBadge.innerText = forms.length;
-            mBadge.classList.remove('hidden');
-
-            let cardHtml = "";
-            forms.forEach(form => {
-                // 假別特殊標籤顏色
-                const typeColor = form.formType === '請假' ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-purple-100 text-purple-800 border-purple-200';
+        // 💡 關鍵優化：專門將 ISO 格式時間（2026-06-12T15:53:00.000Z）優雅轉換為在地格式的函式
+        function formatDateTimeString(dateStr) {
+            if (!dateStr) return "";
+            try {
+                const d = new Date(dateStr);
+                if (isNaN(d.getTime())) return dateStr; // 如果本來就是純文字就直接回傳
                 
-                // 格式化時間字串，把怪異的 T 和 .000Z 濾掉，讓主管看得很舒服
-                const cleanStart = form.startTime.replace("T", " ").replace(/\.\d+Z$/, "");
-                const cleanEnd = form.endTime.replace("T", " ").replace(/\.\d+Z$/, "");
-
-                cardHtml += `
-                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 space-y-3">
-                        <!-- 卡片頭部：名字與假別 -->
-                        <div class="flex justify-between items-center pb-2 border-b border-gray-100">
-                            <div>
-                                <span class="text-base font-black text-gray-800">${form.name}</span>
-                                <span class="text-xs text-gray-400 ml-1.5 font-mono">工號: ${form.empId}</span>
-                            </div>
-                            <span class="text-xs px-2.5 py-0.5 rounded-lg font-bold border ${typeColor}">
-                                ${form.formType} · ${form.subType}
-                            </span>
-                        </div>
-
-                        <!-- 卡片中部：詳細時間 -->
-                        <div class="text-xs bg-gray-50 p-3 rounded-xl text-gray-600 space-y-1.5 font-sans">
-                            <div class="flex"><span class="text-gray-400 shrink-0 w-12">始於：</span><span class="text-gray-800 font-medium">${cleanStart}</span></div>
-                            <div class="flex"><span class="text-gray-400 shrink-0 w-12">迄於：</span><span class="text-gray-800 font-medium">${cleanEnd}</span></div>
-                            <div class="flex items-center"><span class="text-gray-400 shrink-0 w-12">合計：</span><span class="text-indigo-600 font-extrabold text-sm font-mono">${form.totalHours} 小時</span></div>
-                        </div>
-
-                        <!-- 卡片事由 -->
-                        <div class="bg-amber-50/40 p-2.5 rounded-xl border border-amber-100/60">
-                            <p class="text-[11px] text-amber-600 font-bold mb-0.5"><i class="fa-solid fa-comment-dots mr-1"></i>事由 / 備註</p>
-                            <p class="text-xs text-gray-700 leading-relaxed">${form.reason || '無填寫事由'}</p>
-                        </div>
-
-                        <!-- 卡片底部：大按鈕（絕對不會被切除！） -->
-                        <div class="grid grid-cols-2 gap-2 pt-1">
-                            <button onclick="reviewForm('${form.formId}', '已拒絕')" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold py-2.5 rounded-xl text-xs border border-rose-200 active:scale-95 transition-all">
-                                ❌ 拒絕申請
-                            </button>
-                            <button onclick="reviewForm('${form.formId}', '已核准')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-sm active:scale-95 transition-all">
-                                ➔ 准予核定
-                            </button>
-                        </div>
-                    </div>`;
-            });
-
-            container.innerHTML = cardHtml;
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                const hh = String(d.getHours()).padStart(2, '0');
+                const min = String(d.getMinutes()).padStart(2, '0');
+                
+                return `${yyyy}-${mm}-${dd} ${hh}:${hh === '00' && min === '00' ? '00' : min}`;
+            } catch (e) {
+                return dateStr;
+            }
         }
 
-        function reviewForm(formId, statusResult) {
-            if (!GAS_WEB_APP_URL) return;
-            if (!confirm(`確定要批核此表單為 [${statusResult}] 嗎？`)) return;
+        // 2. 載入待審核單據
+        function loadPendingForms() {
+            const tbody = document.getElementById('pending-table-body');
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center p-6 text-gray-400"><i class="fa-solid fa-spinner animate-spin mr-2"></i>更新資料中...</td></tr>`;
 
-            const payload = { action: "reviewForm", formId: formId, statusResult: statusResult, adminName: currentAdminName };
+            const url = `${GAS_WEB_APP_URL}?action=getPendingForms&lineUid=${encodeURIComponent(MOCK_LINE_UID)}`;
+            fetch(url)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === "success") {
+                        if (res.data.length === 0) {
+                            tbody.innerHTML = `<tr><td colspan="5" class="text-center p-8 text-gray-400">🎉 目前沒有任何待審核的請假或加班申請！</td></tr>`;
+                            return;
+                        }
+                        tbody.innerHTML = "";
+                        res.data.forEach(form => {
+                            tbody.innerHTML += `
+                                <tr class="hover:bg-gray-50/80 transition-colors">
+                                    <td class="p-3 font-medium text-gray-900">${form.name}<br><span class="text-xs text-gray-400 font-mono">${form.empId}</span></td>
+                                    <td class="p-3"><span class="bg-amber-100 text-amber-800 text-xs px-2 py-0.5 rounded-md font-semibold">${form.formType}(${form.subType})</span></td>
+                                    <td class="p-3 text-xs leading-relaxed text-gray-600">
+                                        <span class="text-gray-400">起：</span>${formatDateTimeString(form.startTime)}<br>
+                                        <span class="text-gray-400">迄：</span>${formatDateTimeString(form.endTime)}<br>
+                                        <span class="text-indigo-600 font-bold">⏱️ 合計 ${form.totalHours} 小時</span>
+                                    </td>
+                                    <td class="p-3 max-w-xs truncate text-gray-500" title="${form.reason}">${form.reason || '無'}</td>
+                                    <td class="p-3 text-center space-x-1">
+                                        <button onclick="executeReview('${form.formId}', '已核准')" class="bg-green-600 hover:bg-green-700 text-white text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all"><i class="fa-solid fa-check mr-1"></i>准許</button>
+                                        <button onclick="executeReview('${form.formId}', '已拒絕')" class="bg-red-50 hover:bg-red-100 text-red-600 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all"><i class="fa-solid fa-xmark mr-1"></i>駁回</button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    }
+                });
+        }
+
+        // 3. 執行審核動作 (核准/駁回)
+        function executeReview(formId, decision) {
+            if (!confirm(`確定要將此單據設定為【${decision}】嗎？`)) return;
 
             fetch(GAS_WEB_APP_URL, {
                 method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "text/plain;charset=utf-8" },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({
+                    action: "reviewForm",
+                    lineUid: MOCK_LINE_UID,
+                    formId: formId,
+                    statusResult: decision
+                })
             })
-            .then(() => {
-                alert(`🎯 審核完畢：系統已成功標記為 [${statusResult}]`);
-                fetchPendingForms();
-            })
-            .catch(error => {
-                console.error("審核失敗:", error);
-                alert("通訊失敗，請重試。");
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === "success") {
+                    alert(`單據 ${formId} 已成功改為：${decision}`);
+                    loadPendingForms(); // 重新整理
+                } else {
+                    alert("審核失敗：" + res.message);
+                }
             });
         }
 
-        function loadAttendanceReports() {
-            if (!GAS_WEB_APP_URL) return;
-            const tbody = document.getElementById('report-list-tbody');
-            tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i>雲端日誌載入中...</td></tr>`;
+        // 4. 載入人事檔案
+        let hrProfilesData = []; // 快取人事資料
+        function loadHRProfiles() {
+            const tbody = document.getElementById('hr-table-body');
+            const url = `${GAS_WEB_APP_URL}?action=getHRProfiles&lineUid=${encodeURIComponent(MOCK_LINE_UID)}`;
+            
+            fetch(url)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === "success") {
+                        hrProfilesData = res.data;
+                        tbody.innerHTML = "";
+                        res.data.forEach(emp => {
+                            const statusColor = emp.status === "在職" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
+                            const roleColor = emp.role === "Admin" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-800";
+                            
+                            tbody.innerHTML += `
+                                <tr class="hover:bg-gray-50/80 transition-colors">
+                                    <td class="p-3 font-semibold text-gray-800">${emp.name}<br><span class="text-xs text-gray-400 font-mono">${emp.empId}</span></td>
+                                    <td class="p-3 text-sm text-gray-600">${emp.dept}<br><span class="text-xs text-gray-500">${emp.title}</span></td>
+                                    <td class="p-3 font-mono text-xs text-gray-600">${emp.phone || '無'}</td>
+                                    <td class="p-3 font-mono text-xs text-gray-400 select-all" title="雙擊可全選複製">${emp.lineUid}</td>
+                                    <td class="p-3 space-y-1">
+                                        <span class="${statusColor} text-xs px-2 py-0.5 rounded-md font-medium block w-fit">${emp.status}</span>
+                                        <span class="${roleColor} text-xs px-2 py-0.5 rounded-md font-medium block w-fit">${emp.role}</span>
+                                    </td>
+                                    <td class="p-3 text-center">
+                                        <button onclick="openHREditModal('${emp.empId}')" class="text-indigo-600 hover:text-indigo-900 text-xs font-medium bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-all"><i class="fa-solid fa-user-pen mr-1"></i>編輯</button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    }
+                });
+        }
 
-            fetch(`${GAS_WEB_APP_URL}?action=getAttendanceReports`)
-            .then(response => response.json())
-            .then(res => {
-                if (res.status === "success" && res.data.length > 0) {
-                    let html = "";
-                    res.data.forEach(log => {
-                        const badgeColor = log.type === '上班' ? 'text-emerald-600 bg-emerald-50' : 'text-orange-600 bg-orange-50';
-                        html += `
-                            <tr class="hover:bg-gray-50/50">
-                                <td class="p-3 font-bold text-gray-800">${log.name}</td>
-                                <td class="p-3 text-gray-500">${log.date}</td>
-                                <td class="p-3 font-mono font-bold text-gray-700">${log.time}</td>
-                                <td class="p-3"><span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${badgeColor}">${log.type}</span></td>
-                                <td class="p-3 text-gray-400 text-[11px] max-w-[120px] truncate">${log.memo}</td>
-                            </tr>`;
-                    });
-                    tbody.innerHTML = html;
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-400">目前尚無任何打卡明細。</td></tr>`;
+        // 5. 開啟/新增人事檔案視窗
+        function openHREditModal(empId = null) {
+            const modal = document.getElementById('hr-modal');
+            const form = document.getElementById('hr-form');
+            form.reset();
+
+            if (empId) {
+                document.getElementById('modal-title').innerText = "📝 編輯員工檔案";
+                document.getElementById('form-empId').readOnly = true;
+                document.getElementById('form-empId').className = "w-full border border-gray-200 bg-gray-50 text-gray-400 rounded-xl px-3 py-2 font-mono focus:outline-none";
+                
+                // 填入既有舊資料
+                const emp = hrProfilesData.find(e => e.empId === empId);
+                if (emp) {
+                    document.getElementById('form-empId').value = emp.empId;
+                    document.getElementById('form-name').value = emp.name;
+                    document.getElementById('form-dept').value = emp.dept;
+                    document.getElementById('form-title').value = emp.title;
+                    document.getElementById('form-arrivalDate').value = emp.arrivalDate;
+                    document.getElementById('form-phone').value = emp.phone;
+                    document.getElementById('form-lineUid').value = emp.lineUid;
+                    document.getElementById('form-status').value = emp.status;
+                    document.getElementById('form-role').value = emp.role;
                 }
+            } else {
+                document.getElementById('modal-title').innerText = "➕ 新增全新員工檔案";
+                document.getElementById('form-empId').readOnly = false;
+                document.getElementById('form-empId').className = "w-full border border-gray-200 rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-indigo-500";
+                document.getElementById('form-arrivalDate').value = new Date().toISOString().split('T')[0];
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeHRModal() {
+            document.getElementById('hr-modal').classList.add('hidden');
+        }
+
+        // 6. 送出儲存人事檔案
+        function submitHRForm(event) {
+            event.preventDefault();
+            
+            const empData = {
+                empId: document.getElementById('form-empId').value.trim(),
+                name: document.getElementById('form-name').value.trim(),
+                dept: document.getElementById('form-dept').value.trim(),
+                title: document.getElementById('form-title').value.trim(),
+                arrivalDate: document.getElementById('form-arrivalDate').value,
+                phone: document.getElementById('form-phone').value.trim(),
+                lineUid: document.getElementById('form-lineUid').value.trim(),
+                status: document.getElementById('form-status').value,
+                role: document.getElementById('form-role').value
+            };
+
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                body: JSON.stringify({
+                    action: "saveHRProfile",
+                    lineUid: MOCK_LINE_UID,
+                    empData: empData
+                })
             })
-            .catch(() => { tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">報表讀取失敗。</td></tr>`; });
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === "success") {
+                    alert("員工檔案同步至試算表成功！");
+                    closeHRModal();
+                    loadHRProfiles(); // 重新刷清單
+                } else {
+                    alert("儲存失敗：" + res.message);
+                }
+            });
         }
 
-        function switchTab(tabId) {
-            document.getElementById('tab-approval').classList.add('hidden');
-            document.getElementById('tab-records').classList.add('hidden');
-            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+        // 7. 載入歷史出勤紀錄
+        function loadAttendanceReports() {
+            const tbody = document.getElementById('report-table-body');
+            const url = `${GAS_WEB_APP_URL}?action=getAttendanceReports&lineUid=${encodeURIComponent(MOCK_LINE_UID)}`;
             
-            document.getElementById('mbn-approval').className = "px-3 py-2 rounded-xl text-xs font-bold transition " + (tabId === 'approval' ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-400");
-            document.getElementById('mbn-records').className = "px-3 py-2 rounded-xl text-xs font-bold transition " + (tabId === 'records' ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-400");
+            fetch(url)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === "success") {
+                        tbody.innerHTML = "";
+                        if (res.data.length === 0) {
+                            tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-gray-400">目前尚無任何員工打卡數據。</td></tr>`;
+                            return;
+                        }
+                        res.data.forEach(log => {
+                            let typeBadge = "";
+                            if (log.type === "上班") typeBadge = '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-semibold">上班</span>';
+                            else if (log.type === "下班") typeBadge = '<span class="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded font-semibold">下班</span>';
+                            else typeBadge = `<span class="bg-purple-100 text-purple-800 text-xs px-2 py-0.5 rounded font-semibold">${log.type}</span>`;
 
-            document.getElementById('current-title').innerText = tabId === 'approval' ? '待審核表單中心' : '出缺勤報表與統計';
-            
-            if (tabId === 'records') loadAttendanceReports();
+                            tbody.innerHTML += `
+                                <tr class="hover:bg-gray-50/60 transition-colors">
+                                    <td class="p-3 font-mono text-gray-500">${log.empId}</td>
+                                    <td class="p-3 font-medium text-gray-800">${log.name}</td>
+                                    <td class="p-3 font-mono text-gray-600">${formatDateTimeString(log.date)}</td>
+                                    <td class="p-3 font-mono text-gray-600 font-bold">${log.time}</td>
+                                    <td class="p-3">${typeBadge}</td>
+                                    <td class="p-3 text-xs text-gray-400 max-w-xs truncate" title="${log.memo}">${log.memo || '-'}</td>
+                                </tr>
+                            `;
+                        });
+                    }
+                });
         }
 
-        function startLiveTime() {
-            setInterval(() => {
-                const now = new Date();
-                document.getElementById('live-time').innerText = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate() + ' ' + now.toTimeString().split(' ')[0];
-            }, 1000);
+        // UI 共用分頁切換
+        function switchTab(targetSectionId) {
+            document.querySelectorAll('.tab-content').forEach(section => section.classList.add('hidden'));
+            document.getElementById(targetSectionId).classList.remove('hidden');
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = "tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all";
+            });
+            document.getElementById('btn-' + targetSectionId).className = "tab-btn bg-white text-gray-800 px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all";
         }
     </script>
 </body>
