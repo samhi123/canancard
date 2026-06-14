@@ -29,7 +29,7 @@
         </a>
     </nav>
 
-    <div id="loading-view" class="fixed inset-0 bg-slate-900/10 backdrop-blur-xs flex flex-col justify-center items-center z-50">
+    <div id="loading-view" class="fixed inset-0 bg-slate-100 flex flex-col justify-center items-center z-50">
         <div class="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center">
             <i class="fa-solid fa-shield-halved animate-spin text-3xl text-indigo-600 mb-3"></i>
             <p class="text-sm font-semibold text-slate-700">正在執行管理員安全環境驗證...</p>
@@ -131,7 +131,7 @@
             initAdminSecurityCheck();
         };
 
-        // 【第一關】：自動判斷 LINE 及 Admin 權限
+        // 第一關：自動安全檢查 (比照首頁打卡邏輯)
         function initAdminSecurityCheck() {
             if (!navigator.userAgent.includes("Line") && !navigator.userAgent.includes("LIFF")) {
                 showLoginModalView();
@@ -146,20 +146,8 @@
                             fetch(url)
                                 .then(res => res.json())
                                 .then(res => {
-                                    console.log("LINE 自動登入回傳結果:", res);
-                                    
-                                    // 模糊比對任何可能是 Admin 的欄位值
-                                    let hasAdminRight = false;
-                                    if (res.status === "success" && res.data) {
-                                        for (let key in res.data) {
-                                            if (String(res.data[key]).trim() === "Admin") {
-                                                hasAdminRight = true;
-                                                break;
-                                            }
-                                        }
-                                    }
-
-                                    if (hasAdminRight) {
+                                    // 驗證成功且綁定的員工權限為 Admin
+                                    if (res.status === "success" && res.data && res.data.權限設定 === "Admin") {
                                         unlockAdminDashboard();
                                     } else {
                                         showLoginModalView();
@@ -174,7 +162,7 @@
                 .catch(() => showLoginModalView());
         }
 
-        // 【第二關】：手動帳密登入
+        // 第二關：與打卡完全一致的手動帳密登入
         function handleAdminPasswordLogin(event) {
             event.preventDefault();
             const empId = document.getElementById('admin-empId').value.trim();
@@ -188,32 +176,20 @@
             fetch(url)
                 .then(res => res.json())
                 .then(res => {
-                    // 🔍 這裡會在瀏覽器主控台 (Console) 印出 GAS 傳回來的所有欄位，方便您排查
-                    console.log("帳密登入後端回傳結果:", res);
-
+                    // 比照打卡首頁，只要後端傳回成功
                     if (res.status === "success" && res.data) {
-                        // 🚀 關鍵優化：直接跑迴圈翻找這個員工物件裡，到底哪一個欄位的值等於 "Admin"
-                        // 這樣不管欄位名稱是叫「權限設定」、「role」、「auth」或任何名稱，只要值有 Admin 就放行！
-                        let hasAdminRight = false;
-                        for (let key in res.data) {
-                            if (String(res.data[key]).trim() === "Admin") {
-                                hasAdminRight = true;
-                                break;
-                            }
-                        }
-
-                        if (hasAdminRight) {
-                            unlockAdminDashboard();
+                        // 唯一額外判斷：試算表該列的權限設定必須為 Admin
+                        if (res.data.權限設定 === "Admin") {
+                            unlockAdminDashboard(); 
                         } else {
-                            triggerAccessDenied(`驗證成功，但此帳號在系統中不具備 Admin 權限。`);
+                            triggerAccessDenied("安全阻斷：此帳號密碼正確，但您的角色不具備管理員(Admin)權限。");
                         }
                     } else {
-                        triggerAccessDenied(`驗證失敗：${res.message || '工號或密碼錯誤。'}`);
+                        triggerAccessDenied(`驗證失敗：${res.message || '工號或密碼輸入錯誤。'}`);
                     }
                 })
                 .catch((err) => {
-                    console.error("API 連線錯誤:", err);
-                    triggerAccessDenied("通訊失敗：無法連結後端 GAS 服務，請檢查 env.js 設定。");
+                    triggerAccessDenied("連線失敗：無法穿透網路，請確保後端 GAS 腳本已完成『新版本』發布。");
                 });
         }
 
@@ -227,7 +203,7 @@
             document.getElementById('loading-view').classList.add('hidden');
             document.getElementById('admin-login-modal').classList.add('hidden');
             document.getElementById('admin-dashboard').classList.remove('hidden');
-            fetchGlobalAttendanceData();
+            fetchGlobalAttendanceData(); // 載入跨所差勤明細
         }
 
         function triggerAccessDenied(message) {
@@ -235,10 +211,11 @@
             document.getElementById('admin-login-modal').classList.add('hidden');
             document.getElementById('admin-dashboard').classList.add('hidden');
             
-            alert(`⚠️ 安全阻斷：\n${message}`);
-            window.location.href = "index.html"; 
+            alert(message);
+            window.location.href = "index.html"; // 強制導回首頁
         }
 
+        // 讀取試算表中的跨所全體明細
         function fetchGlobalAttendanceData() {
             let url = `${SYSTEM_ENV.GAS_WEB_APP_URL}?action=getAllAttendanceLogs`;
             fetch(url)
@@ -250,11 +227,11 @@
                         renderTable(res.data);
                         calculateStats(res.data);
                     } else {
-                        document.getElementById('attendance-tbody').innerHTML = `<tr><td colspan="6" class="text-center py-6 text-rose-500">無法加載數據：${res.message}</td></tr>`;
+                        document.getElementById('attendance-tbody').innerHTML = `<tr><td colspan="6" class="text-center py-6 text-rose-500">讀取失敗：${res.message}</td></tr>`;
                     }
                 })
                 .catch(() => {
-                    document.getElementById('attendance-tbody').innerHTML = `<tr><td colspan="6" class="text-center py-6 text-rose-500">加載數據失敗，請確認網路連線。</td></tr>`;
+                    document.getElementById('attendance-tbody').innerHTML = `<tr><td colspan="6" class="text-center py-6 text-rose-500">伺服器連線中斷，請稍後再試。</td></tr>`;
                 });
         }
 
@@ -282,10 +259,6 @@
                 calculateStats(filtered);
             }
         }
-
-        document.addEventListener('click', function(e) {
-            // 系統維護保留點
-        });
 
         function renderTable(data) {
             const tbody = document.getElementById('attendance-tbody');
