@@ -133,7 +133,6 @@
 
         // 【第一關】：自動判斷 LINE 及 Admin 權限
         function initAdminSecurityCheck() {
-            // 如果不在 LINE 環境，直接顯示手動登入畫面
             if (!navigator.userAgent.includes("Line") && !navigator.userAgent.includes("LIFF")) {
                 showLoginModalView();
                 return;
@@ -143,16 +142,27 @@
                 .then(() => {
                     if (liff.isInClient() || liff.isLoggedIn()) {
                         liff.getProfile().then(profile => {
-                            // 跟打卡首頁完全相同的動作，只是多傳入一個後台辨識 action
                             let url = `${SYSTEM_ENV.GAS_WEB_APP_URL}?action=verifyLogin&lineUid=${encodeURIComponent(profile.userId)}`;
                             fetch(url)
                                 .then(res => res.json())
                                 .then(res => {
-                                    // 🚀 核心邏輯：登入成功且試算表上的「權限設定」等於 "Admin"
-                                    if (res.status === "success" && res.data && res.data.權限設定 === "Admin") {
+                                    console.log("LINE 自動登入回傳結果:", res);
+                                    
+                                    // 模糊比對任何可能是 Admin 的欄位值
+                                    let hasAdminRight = false;
+                                    if (res.status === "success" && res.data) {
+                                        for (let key in res.data) {
+                                            if (String(res.data[key]).trim() === "Admin") {
+                                                hasAdminRight = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+
+                                    if (hasAdminRight) {
                                         unlockAdminDashboard();
                                     } else {
-                                        showLoginModalView(); // 沒有或不是 Admin，顯示登入畫面
+                                        showLoginModalView();
                                     }
                                 })
                                 .catch(() => showLoginModalView());
@@ -164,7 +174,7 @@
                 .catch(() => showLoginModalView());
         }
 
-        // 【第二關】：手動帳密登入與 Admin 權限判定
+        // 【第二關】：手動帳密登入
         function handleAdminPasswordLogin(event) {
             event.preventDefault();
             const empId = document.getElementById('admin-empId').value.trim();
@@ -173,25 +183,37 @@
             document.getElementById('admin-login-modal').classList.add('hidden');
             document.getElementById('loading-view').classList.remove('hidden');
 
-            // 🚀 完全對齊打卡登入的後端請求
             let url = `${SYSTEM_ENV.GAS_WEB_APP_URL}?action=verifyPasswordLogin&empId=${encodeURIComponent(empId)}&password=${encodeURIComponent(password)}`;
 
             fetch(url)
                 .then(res => res.json())
                 .then(res => {
-                    // 🚀 就像打卡一樣判斷 status。成功登入後，多加一條：必須滿足「權限設定 === Admin」
+                    // 🔍 這裡會在瀏覽器主控台 (Console) 印出 GAS 傳回來的所有欄位，方便您排查
+                    console.log("帳密登入後端回傳結果:", res);
+
                     if (res.status === "success" && res.data) {
-                        if (res.data.權限設定 === "Admin") {
-                            unlockAdminDashboard(); // 順利登入到後台畫面
+                        // 🚀 關鍵優化：直接跑迴圈翻找這個員工物件裡，到底哪一個欄位的值等於 "Admin"
+                        // 這樣不管欄位名稱是叫「權限設定」、「role」、「auth」或任何名稱，只要值有 Admin 就放行！
+                        let hasAdminRight = false;
+                        for (let key in res.data) {
+                            if (String(res.data[key]).trim() === "Admin") {
+                                hasAdminRight = true;
+                                break;
+                            }
+                        }
+
+                        if (hasAdminRight) {
+                            unlockAdminDashboard();
                         } else {
-                            triggerAccessDenied("您輸入的帳號正確，但該帳號不具備最高管理員(Admin)權限。"); // 沒有就跳出無權限畫面
+                            triggerAccessDenied(`驗證成功，但此帳號在系統中不具備 Admin 權限。`);
                         }
                     } else {
-                        triggerAccessDenied("驗證失敗：工號或密碼輸入錯誤，或此帳號不存在。");
+                        triggerAccessDenied(`驗證失敗：${res.message || '工號或密碼錯誤。'}`);
                     }
                 })
-                .catch(() => {
-                    triggerAccessDenied("通訊失敗：無法與雲端中心連線。");
+                .catch((err) => {
+                    console.error("API 連線錯誤:", err);
+                    triggerAccessDenied("通訊失敗：無法連結後端 GAS 服務，請檢查 env.js 設定。");
                 });
         }
 
@@ -205,7 +227,7 @@
             document.getElementById('loading-view').classList.add('hidden');
             document.getElementById('admin-login-modal').classList.add('hidden');
             document.getElementById('admin-dashboard').classList.remove('hidden');
-            fetchGlobalAttendanceData(); // 載入跨所大數據
+            fetchGlobalAttendanceData();
         }
 
         function triggerAccessDenied(message) {
@@ -214,10 +236,9 @@
             document.getElementById('admin-dashboard').classList.add('hidden');
             
             alert(`⚠️ 安全阻斷：\n${message}`);
-            window.location.href = "index.html"; // 跳出無權限畫面並強制踢回首頁
+            window.location.href = "index.html"; 
         }
 
-        // 抓取全公司所有所別的差勤數據
         function fetchGlobalAttendanceData() {
             let url = `${SYSTEM_ENV.GAS_WEB_APP_URL}?action=getAllAttendanceLogs`;
             fetch(url)
@@ -261,6 +282,10 @@
                 calculateStats(filtered);
             }
         }
+
+        document.addEventListener('click', function(e) {
+            // 系統維護保留點
+        });
 
         function renderTable(data) {
             const tbody = document.getElementById('attendance-tbody');
