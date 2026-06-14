@@ -45,7 +45,6 @@
                 <h3 class="text-base font-bold text-slate-800">管理員手動登入</h3>
                 <p class="text-xs text-slate-400 mt-1">系統偵測到非 LINE 環境，請執行安全驗證</p>
             </div>
-            
             <form onsubmit="handleAdminPasswordLogin(event)" class="space-y-3 text-left">
                 <div>
                     <label class="block text-[11px] font-semibold text-slate-500 mb-1">管理員工號</label>
@@ -62,7 +61,8 @@
         </div>
     </div>
 
-    <main id="admin-dashboard" class="hidden flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
+    <main id="admin-dashboard" class="hidden flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-8">
+        
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex items-center space-x-4">
                 <div class="p-3 bg-indigo-50 text-indigo-600 rounded-lg text-xl"><i class="fa-solid fa-users"></i></div>
@@ -79,45 +79,81 @@
                 </div>
             </div>
             <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex items-center space-x-4">
-                <div class="p-3 bg-amber-50 text-amber-600 rounded-lg text-xl"><i class="fa-solid fa-business-time"></i></div>
+                <div class="p-3 bg-amber-50 text-amber-600 rounded-lg text-xl"><i class="fa-solid fa-hourglass-half"></i></div>
                 <div>
-                    <p class="text-xs text-slate-400 font-medium">異常/備註提醒</p>
-                    <p id="stat-memo-count" class="text-xl font-bold text-slate-800 mt-0.5">0 筆</p>
+                    <p class="text-xs text-slate-400 font-medium">待審核單據總數</p>
+                    <p id="stat-pending-count" class="text-xl font-bold text-amber-600 mt-0.5">0 筆</p>
                 </div>
             </div>
         </div>
 
         <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-            <h2 class="font-bold text-slate-800 text-sm flex items-center"><i class="fa-solid fa-list-check mr-2 text-indigo-500"></i> 全所別實時差勤明細</h2>
+            <h2 class="font-bold text-slate-800 text-sm flex items-center"><i class="fa-solid fa-sliders mr-2 text-indigo-500"></i> 後台全局數據篩選中心</h2>
             <div class="flex items-center space-x-2 w-full md:w-auto">
-                <label class="text-xs text-slate-400 whitespace-nowrap">篩選所別：</label>
-                <select id="office-filter" onchange="filterDataByOffice()" class="text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-slate-50 font-medium focus:outline-none">
+                <label class="text-xs text-slate-400 whitespace-nowrap">切換所別：</label>
+                <select id="office-filter" onchange="filterAllDataByOffice()" class="text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-slate-50 font-medium focus:outline-none">
                     <option value="ALL">全部所別 (跨所聯查)</option>
                 </select>
             </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-xs">
-                    <thead>
-                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold tracking-wider">
-                            <th class="p-3.5">打卡時間</th>
-                            <th class="p-3.5">所別</th>
-                            <th class="p-3.5">工號</th>
-                            <th class="p-3.5">姓名</th>
-                            <th class="p-3.5">類型</th>
-                            <th class="p-3.5">打卡備註說明</th>
-                        </tr>
-                    </thead>
-                    <tbody id="attendance-tbody" class="divide-y divide-slate-100 text-slate-600 font-medium">
-                        <tr>
-                            <td colspan="6" class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner animate-spin mr-2"></i> 正在安全讀取全所數據中...</td>
-                        </tr>
-                    </tbody>
-                </table>
+        <div class="space-y-3">
+            <div class="flex items-center space-x-2">
+                <span class="w-1.5 h-5 bg-amber-500 rounded-full"></span>
+                <h3 class="text-sm font-bold text-slate-800">人事表單線上簽核審查</h3>
+            </div>
+            <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold tracking-wider">
+                                <th class="p-3.5">申請時間</th>
+                                <th class="p-3.5">所別</th>
+                                <th class="p-3.5">姓名(工號)</th>
+                                <th class="p-3.5">假別/單據</th>
+                                <th class="p-3.5">申請詳細說明</th>
+                                <th class="p-3.5">當前狀態</th>
+                                <th class="p-3.5 text-center">決策控制</th>
+                            </tr>
+                        </thead>
+                        <tbody id="form-review-tbody" class="divide-y divide-slate-100 text-slate-600 font-medium">
+                            <tr>
+                                <td colspan="7" class="text-center py-6 text-slate-400">正在載入待審核表單清單...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
+
+        <div class="space-y-3">
+            <div class="flex items-center space-x-2">
+                <span class="w-1.5 h-5 bg-indigo-600 rounded-full"></span>
+                <h3 class="text-sm font-bold text-slate-800">全所別當日打卡明細</h3>
+            </div>
+            <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold tracking-wider">
+                                <th class="p-3.5">打卡時間</th>
+                                <th class="p-3.5">所別</th>
+                                <th class="p-3.5">工號</th>
+                                <th class="p-3.5">姓名</th>
+                                <th class="p-3.5">類型</th>
+                                <th class="p-3.5">打卡備註說明</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendance-tbody" class="divide-y divide-slate-100 text-slate-600 font-medium">
+                            <tr>
+                                <td colspan="6" class="text-center py-6 text-slate-400">正在讀取今日打卡數據...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <footer class="text-center py-4 text-[10px] text-slate-400 tracking-wide">
@@ -126,43 +162,38 @@
 
     <script>
         let rawAttendanceData = [];
+        let rawFormData = [];
 
         window.onload = function() {
             initAdminSecurityCheck();
         };
 
-        // 第一關：自動安全檢查 (比照首頁打卡邏輯)
+        // 第一關：自動安全比對
         function initAdminSecurityCheck() {
             if (!navigator.userAgent.includes("Line") && !navigator.userAgent.includes("LIFF")) {
                 showLoginModalView();
                 return;
             }
-
             liff.init({ liffId: SYSTEM_ENV.LIFF_ID })
                 .then(() => {
                     if (liff.isInClient() || liff.isLoggedIn()) {
                         liff.getProfile().then(profile => {
                             let url = `${SYSTEM_ENV.GAS_WEB_APP_URL}?action=verifyLogin&lineUid=${encodeURIComponent(profile.userId)}`;
-                            fetch(url)
-                                .then(res => res.json())
-                                .then(res => {
-                                    // 驗證成功且綁定的員工權限為 Admin
-                                    if (res.status === "success" && res.data && res.data.權限設定 === "Admin") {
-                                        unlockAdminDashboard();
-                                    } else {
-                                        showLoginModalView();
-                                    }
-                                })
-                                .catch(() => showLoginModalView());
+                            fetch(url).then(res => res.json()).then(res => {
+                                if (res.status === "success" && res.data && res.data.權限設定 === "Admin") {
+                                    unlockAdminDashboard();
+                                } else {
+                                    showLoginModalView();
+                                }
+                            }).catch(() => showLoginModalView());
                         }).catch(() => showLoginModalView());
                     } else {
                         showLoginModalView();
                     }
-                })
-                .catch(() => showLoginModalView());
+                }).catch(() => showLoginModalView());
         }
 
-        // 第二關：與打卡完全一致的手動帳密登入
+        // 第二關：手動帳密登入與 Admin 權限判定
         function handleAdminPasswordLogin(event) {
             event.preventDefault();
             const empId = document.getElementById('admin-empId').value.trim();
@@ -173,24 +204,15 @@
 
             let url = `${SYSTEM_ENV.GAS_WEB_APP_URL}?action=verifyPasswordLogin&empId=${encodeURIComponent(empId)}&password=${encodeURIComponent(password)}`;
 
-            fetch(url)
-                .then(res => res.json())
-                .then(res => {
-                    // 比照打卡首頁，只要後端傳回成功
-                    if (res.status === "success" && res.data) {
-                        // 唯一額外判斷：試算表該列的權限設定必須為 Admin
-                        if (res.data.權限設定 === "Admin") {
-                            unlockAdminDashboard(); 
-                        } else {
-                            triggerAccessDenied("安全阻斷：此帳號密碼正確，但您的角色不具備管理員(Admin)權限。");
-                        }
-                    } else {
-                        triggerAccessDenied(`驗證失敗：${res.message || '工號或密碼輸入錯誤。'}`);
-                    }
-                })
-                .catch((err) => {
-                    triggerAccessDenied("連線失敗：無法穿透網路，請確保後端 GAS 腳本已完成『新版本』發布。");
-                });
+            fetch(url).then(res => res.json()).then(res => {
+                if (res.status === "success" && res.data && res.data.權限設定 === "Admin") {
+                    unlockAdminDashboard();
+                } else {
+                    triggerAccessDenied("安全阻斷：此帳密正確，但該帳號不具備最高管理員(Admin)權限。");
+                }
+            }).catch(() => {
+                triggerAccessDenied("通訊失敗：請確認後端 GAS 設定並重新發布新版本。");
+            });
         }
 
         function showLoginModalView() {
@@ -203,38 +225,38 @@
             document.getElementById('loading-view').classList.add('hidden');
             document.getElementById('admin-login-modal').classList.add('hidden');
             document.getElementById('admin-dashboard').classList.remove('hidden');
-            fetchGlobalAttendanceData(); // 載入跨所差勤明細
+            fetchAllBackendData(); // 載入所有明細與審核表單
         }
 
         function triggerAccessDenied(message) {
-            document.getElementById('loading-view').classList.add('hidden');
-            document.getElementById('admin-login-modal').classList.add('hidden');
-            document.getElementById('admin-dashboard').classList.add('hidden');
-            
             alert(message);
-            window.location.href = "index.html"; // 強制導回首頁
+            window.location.href = "index.html";
         }
 
-        // 讀取試算表中的跨所全體明細
-        function fetchGlobalAttendanceData() {
-            let url = `${SYSTEM_ENV.GAS_WEB_APP_URL}?action=getAllAttendanceLogs`;
-            fetch(url)
-                .then(res => res.json())
-                .then(res => {
+        // 統一向後端抓取「打卡記錄」與「表單申請紀錄」
+        function fetchAllBackendData() {
+            // 1. 抓取打卡
+            fetch(`${SYSTEM_ENV.GAS_WEB_APP_URL}?action=getAllAttendanceLogs`)
+                .then(res => res.json()).then(res => {
                     if(res.status === "success") {
                         rawAttendanceData = res.data;
                         buildOfficeFilterOptions(res.data);
-                        renderTable(res.data);
-                        calculateStats(res.data);
-                    } else {
-                        document.getElementById('attendance-tbody').innerHTML = `<tr><td colspan="6" class="text-center py-6 text-rose-500">讀取失敗：${res.message}</td></tr>`;
+                        renderAttendanceTable(res.data);
+                        calculateAttendanceStats(res.data);
                     }
-                })
-                .catch(() => {
-                    document.getElementById('attendance-tbody').innerHTML = `<tr><td colspan="6" class="text-center py-6 text-rose-500">伺服器連線中斷，請稍後再試。</td></tr>`;
+                });
+
+            // 2. 抓取待審核表單
+            fetch(`${SYSTEM_ENV.GAS_WEB_APP_URL}?action=getFormApplications`)
+                .then(res => res.json()).then(res => {
+                    if(res.status === "success") {
+                        rawFormData = res.data;
+                        renderFormTable(res.data);
+                    }
                 });
         }
 
+        // 動態產出所別選單
         function buildOfficeFilterOptions(data) {
             const offices = new Set();
             data.forEach(row => { if(row.office) offices.add(row.office); });
@@ -242,36 +264,36 @@
             filterSelect.innerHTML = '<option value="ALL">全部所別 (跨所聯查)</option>';
             offices.forEach(office => {
                 const opt = document.createElement('option');
-                opt.value = office;
-                opt.innerText = office;
+                opt.value = office; opt.innerText = office;
                 filterSelect.appendChild(opt);
             });
         }
 
-        function filterDataByOffice() {
-            const selectedOffice = document.getElementById('office-filter').value;
-            if(selectedOffice === "ALL") {
-                renderTable(rawAttendanceData);
-                calculateStats(rawAttendanceData);
+        // 聯動篩選
+        function filterAllDataByOffice() {
+            const office = document.getElementById('office-filter').value;
+            if(office === "ALL") {
+                renderAttendanceTable(rawAttendanceData);
+                renderFormTable(rawFormData);
             } else {
-                const filtered = rawAttendanceData.filter(row => row.office === selectedOffice);
-                renderTable(filtered);
-                calculateStats(filtered);
+                renderAttendanceTable(rawAttendanceData.filter(r => r.office === office));
+                renderFormTable(rawFormData.filter(r => r.office === office));
             }
         }
 
-        function renderTable(data) {
+        // 渲染打卡明細
+        function renderAttendanceTable(data) {
             const tbody = document.getElementById('attendance-tbody');
             if(data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">📅 今日目前尚無任何打卡數據</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">📅 目前無打卡數據</td></tr>`;
                 return;
             }
             tbody.innerHTML = data.map(row => {
                 const typeClass = row.type === "上班" ? "text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded" : "text-slate-600 bg-slate-100 px-2 py-0.5 rounded";
                 return `
-                    <tr class="hover:bg-slate-50/80 transition-colors">
-                        <td class="p-3.5 text-slate-500 font-mono">${row.timestamp || "---"}</td>
-                        <td class="p-3.5"><span class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-semibold text-[11px]">${row.office || "未註記"}</span></td>
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="p-3.5 text-slate-500 font-mono">${row.timestamp}</td>
+                        <td class="p-3.5"><span class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-semibold">${row.office}</span></td>
                         <td class="p-3.5 font-mono">${row.empId}</td>
                         <td class="p-3.5 text-slate-800 font-bold">${row.name}</td>
                         <td class="p-3.5"><span class="${typeClass}">${row.type}</span></td>
@@ -281,12 +303,68 @@
             }).join('');
         }
 
-        function calculateStats(data) {
+        // 🔥 🔥 渲染人事申請審核表
+        function renderFormTable(data) {
+            const tbody = document.getElementById('form-review-tbody');
+            if(data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-400">☕ 目前無任何假單或加班申請單據</td></tr>`;
+                return;
+            }
+
+            // 更新首頁待審核筆數統計
+            const pendingCount = data.filter(r => r.status === "待審核").length;
+            document.getElementById('stat-pending-count').innerText = `${pendingCount} 筆`;
+
+            tbody.innerHTML = data.map(row => {
+                let statusBadge = `<span class="bg-amber-50 text-amber-600 px-2 py-0.5 rounded">待審核</span>`;
+                if(row.status === "已通過") statusBadge = `<span class="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded">已通過</span>`;
+                if(row.status === "已拒絕") statusBadge = `<span class="bg-rose-50 text-rose-600 px-2 py-0.5 rounded">已拒絕</span>`;
+
+                // 如果是待審核，才顯示控制按鈕
+                let controlButtons = `—`;
+                if(row.status === "待審核") {
+                    controlButtons = `
+                        <div class="flex items-center justify-center space-x-2">
+                            <button onclick="submitReview(${row.rowId}, '已通過')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] px-2.5 py-1 rounded shadow-xs transition-colors"><i class="fa-solid fa-check mr-1"></i>核准</button>
+                            <button onclick="submitReview(${row.rowId}, '已拒絕')" class="bg-rose-500 hover:bg-rose-600 text-white text-[11px] px-2.5 py-1 rounded shadow-xs transition-colors"><i class="fa-solid fa-xmark mr-1"></i>駁回</button>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="p-3.5 text-slate-500 font-mono">${row.timestamp}</td>
+                        <td class="p-3.5"><span class="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">${row.office}</span></td>
+                        <td class="p-3.5 text-slate-800 font-bold">${row.name} <span class="text-[10px] text-slate-400 font-mono">(${row.empId})</span></td>
+                        <td class="p-3.5"><span class="bg-amber-50 text-amber-700 font-bold px-1.5 py-0.5 rounded border border-amber-200/50">${row.formType}</span></td>
+                        <td class="p-3.5 text-slate-600 max-w-sm break-all">${row.details}</td>
+                        <td class="p-3.5">${statusBadge}</td>
+                        <td class="p-3.5 text-center">${controlButtons}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // 🔥 🔥 線上發送審核決策
+        function submitReview(rowId, status) {
+            if(!confirm(`確定要將此單據設為【${status}】嗎？`)) return;
+
+            let url = `${SYSTEM_ENV.GAS_WEB_APP_URL}?action=reviewApplication&rowId=${rowId}&status=${encodeURIComponent(status)}`;
+            
+            fetch(url).then(res => res.json()).then(res => {
+                if(res.status === "success") {
+                    alert("審核完成！單據已更新。");
+                    fetchAllBackendData(); // 重新刷洗資料，即時更新畫面狀態
+                } else {
+                    alert(`審核失敗：${res.message}`);
+                }
+            }).catch(() => alert("通訊出錯，無法連結 Google 試算表。"));
+        }
+
+        function calculateAttendanceStats(data) {
             document.getElementById('stat-total-count').innerText = `${data.length} 筆`;
             const onCount = data.filter(row => row.type === "上班").length;
             document.getElementById('stat-on-count').innerText = `${onCount} 人`;
-            const memoCount = data.filter(row => row.memo && row.memo.trim() !== "").length;
-            document.getElementById('stat-memo-count').innerText = `${memoCount} 筆`;
         }
     </script>
 </body>
