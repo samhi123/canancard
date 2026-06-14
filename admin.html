@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="env.js"></script>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f9fafb; }
         .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -179,43 +180,70 @@
     </div>
 
     <script>
+        const APP_VERSION = "v1.0.6";
         const GAS_WEB_APP_URL = SYSTEM_ENV.GAS_WEB_APP_URL;
-        const MOCK_LINE_UID = SYSTEM_ENV.CURRENT_LINE_UID; 
-        let hrProfilesData = []; // 用於快取員工資料
+        const LIFF_ID = SYSTEM_ENV.LIFF_ID;
+        let currentAdminLineUid = "";
+        let hrProfilesData = [];
 
         window.onload = function() {
-            if(SYSTEM_ENV.COMPANY_NAME) {
+            if (SYSTEM_ENV.COMPANY_NAME) {
                 document.getElementById('ui-company-name').innerText = SYSTEM_ENV.COMPANY_NAME;
             }
             setInterval(() => {
-                document.getElementById('current-time-clock').innerText = "⏱️ 系統時間：" + new Date().toLocaleString('zh-TW', {hour12:false});
+                document.getElementById('current-time-clock').innerText = "⏱️ " + new Date().toLocaleString('zh-TW', {hour12:false});
             }, 1000);
 
-            verifyAdminIdentity();
+            // 顯示版本號
+            document.getElementById('admin-role-tag').innerText = `LINE 登入驗證中... ${APP_VERSION}`;
+
+            // 初始化 LIFF 並驗證管理員身份
+            liff.init({ liffId: LIFF_ID })
+                .then(() => {
+                    if (!liff.isLoggedIn()) {
+                        liff.login(); // 尚未登入 LINE，跳轉登入頁
+                        return;
+                    }
+                    return liff.getProfile();
+                })
+                .then(profile => {
+                    if (!profile) return;
+                    currentAdminLineUid = profile.userId;
+                    verifyAdminIdentity(profile.userId);
+                })
+                .catch(() => {
+                    document.body.innerHTML = `<div class="text-center p-20 text-red-600 font-bold text-xl">❌ LINE 登入初始化失敗，請確認 LIFF ID 設定。</div>`;
+                });
         };
 
-        function verifyAdminIdentity() {
-            const url = `${GAS_WEB_APP_URL}?action=verifyLogin&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&_t=${new Date().getTime()}`;
+        function verifyAdminIdentity(lineUid) {
+            const url = `${GAS_WEB_APP_URL}?action=verifyLogin&lineUid=${encodeURIComponent(lineUid)}&_t=${new Date().getTime()}`;
             fetch(url)
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === "success" && res.data.role === "Admin") {
-                        document.getElementById('admin-role-tag').innerText = `最高管理員 - ${res.data.name}`;
+                        document.getElementById('admin-role-tag').innerText = `${res.data.name}｜${res.data.branch || ''}｜Admin ${APP_VERSION}`;
                         loadPendingForms();
-                        forcedFreshLoadHRProfiles(); 
+                        forcedFreshLoadHRProfiles();
                         loadAttendanceReports();
                     } else {
-                        document.body.innerHTML = `<div class="text-center p-20 text-red-600 font-bold text-xl">❌ 安全攔截：您無權存取人事管理後台。</div>`;
+                        document.body.innerHTML = `<div class="flex flex-col items-center justify-center min-h-screen gap-4">
+                            <div class="text-6xl">🚫</div>
+                            <div class="text-xl font-bold text-red-600">您無權存取人事管理後台</div>
+                            <div class="text-sm text-gray-400">僅限 Admin 角色使用，請聯絡系統管理員</div>
+                        </div>`;
                     }
                 })
-                .catch(() => alert("連線後端 API 失敗，請確認是否已正確發布最新版本的 GAS 部署！"));
+                .catch(() => {
+                    document.body.innerHTML = `<div class="text-center p-20 text-red-600 font-bold text-xl">❌ 連線失敗，請確認 GAS 是否已正確部署。</div>`;
+                });
         }
 
         function forcedFreshLoadHRProfiles() {
             const tbody = document.getElementById('hr-table-body');
             tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-gray-400">更新資料中...</td></tr>`;
             
-            const url = `${GAS_WEB_APP_URL}?action=getHRProfiles&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&t=${new Date().getTime()}`;
+            const url = `${GAS_WEB_APP_URL}?action=getHRProfiles&lineUid=${encodeURIComponent(currentAdminLineUid)}&t=${new Date().getTime()}`;
             fetch(url)
                 .then(res => res.json())
                 .then(res => {
@@ -303,7 +331,7 @@
 
             fetch(GAS_WEB_APP_URL, {
                 method: "POST",
-                body: JSON.stringify({ action: "saveHRProfile", lineUid: MOCK_LINE_UID, empData: empData })
+                body: JSON.stringify({ action: "saveHRProfile", lineUid: currentAdminLineUid, empData: empData })
             })
             .then(res => res.json())
             .then(res => {
@@ -320,7 +348,7 @@
 
             fetch(GAS_WEB_APP_URL, {
                 method: "POST",
-                body: JSON.stringify({ action: "deleteHRProfile", lineUid: MOCK_LINE_UID, empId: empId })
+                body: JSON.stringify({ action: "deleteHRProfile", lineUid: currentAdminLineUid, empId: empId })
             })
             .then(res => res.json())
             .then(res => {
@@ -333,7 +361,7 @@
 
         function loadPendingForms() {
             const tbody = document.getElementById('pending-table-body');
-            const url = `${GAS_WEB_APP_URL}?action=getPendingForms&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&_t=${new Date().getTime()}`;
+            const url = `${GAS_WEB_APP_URL}?action=getPendingForms&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
             fetch(url).then(res => res.json()).then(res => {
                 if (res.status === "success") {
                     tbody.innerHTML = ""; // 💡 清空舊畫面
@@ -351,13 +379,13 @@
         function executeReview(formId, decision) {
             fetch(GAS_WEB_APP_URL, {
                 method: "POST",
-                body: JSON.stringify({ action: "reviewForm", lineUid: MOCK_LINE_UID, formId: formId, statusResult: decision })
+                body: JSON.stringify({ action: "reviewForm", lineUid: currentAdminLineUid, formId: formId, statusResult: decision })
             }).then(res => res.json()).then(res => { if(res.status === "success") { alert("審核成功"); loadPendingForms(); } });
         }
 
         function loadAttendanceReports() {
             const tbody = document.getElementById('report-table-body');
-            const url = `${GAS_WEB_APP_URL}?action=getAttendanceReports&lineUid=${encodeURIComponent(MOCK_LINE_UID)}&_t=${new Date().getTime()}`;
+            const url = `${GAS_WEB_APP_URL}?action=getAttendanceReports&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
             fetch(url).then(res => res.json()).then(res => {
                 if (res.status === "success") {
                     tbody.innerHTML = ""; // 💡 清空舊畫面
@@ -376,6 +404,11 @@
             document.querySelectorAll('.tab-btn').forEach(b => b.className = "tab-btn text-gray-600 px-4 py-2 text-sm font-medium");
             document.getElementById('btn-' + id).className = "tab-btn bg-white text-gray-800 px-4 py-2 rounded-lg text-sm font-medium shadow-sm shadow-gray-200";
         }
+    </script>
+    <div id="appVersion" class="fixed bottom-2 right-3 text-[10px] text-gray-300 select-none z-50"></div>
+
+    <script>
+        document.getElementById('appVersion').innerText = (typeof APP_VERSION !== 'undefined') ? APP_VERSION : '';
     </script>
 </body>
 </html>
