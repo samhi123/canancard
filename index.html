@@ -3,367 +3,232 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>行動人事出勤系統</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+    <title>企業雲端行動打卡系統</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://static.liff.line.me/edge/2/sdk.js"></script>
+    <script src="env.js"></script>
+    <style>
+        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f3f4f6; }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans h-screen flex flex-col justify-between select-none">
+<body class="flex items-center justify-center min-h-screen p-4">
 
-    <header class="bg-white px-4 py-3 shadow-sm flex items-center justify-between shrink-0">
-        <div class="flex items-center space-x-3">
-            <div id="userAvatarContainer" class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm overflow-hidden">
-                員
-            </div>
-            <div>
-                <div class="flex items-center space-x-1">
-                    <span class="font-bold text-gray-800 text-base" id="userName">載入中...</span>
-                    <span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-medium" id="userRole">員工</span>
-                </div>
-                <p class="text-xs text-gray-500" id="userEmpId">工號: E001 · 行動端打卡</p>
-            </div>
-        </div>
-        <button onclick="handleLogout()" class="text-gray-400 hover:text-red-500 text-sm font-medium transition">
-            <i class="fa-solid fa-right-from-bracket mr-1"></i>登出
-        </button>
-    </header>
-
-    <main class="flex-1 overflow-y-auto p-4 pb-20">
+    <div class="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
         
-        <section id="page-clock" class="space-y-4">
-            <div class="bg-gradient-to-br from-indigo-600 to-indigo-700 text-white rounded-2xl p-6 text-center shadow-md">
-                <p class="text-sm opacity-80 tracking-wider mb-1" id="currentDate">2026年06月12日 星期五</p>
-                <h1 class="text-4xl font-black tracking-tight" id="currentTime">00:00:00</h1>
+        <div class="text-center mb-6">
+            <h1 id="company-title" class="text-xl font-bold text-gray-800">行動打卡系統</h1>
+            <p class="text-xs text-gray-400 mt-1">智慧差勤 · 雲端同步</p>
+        </div>
+
+        <div id="loading-view" class="text-center py-8">
+            <i class="fa-solid fa-spinner animate-spin text-3xl text-indigo-600 mb-3"></i>
+            <p class="text-sm text-gray-500">正在安全驗證登入環境...</p>
+        </div>
+
+        <div id="login-view" class="hidden space-y-4">
+            <div class="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-xl text-xs flex items-start">
+                <i class="fa-solid fa-circle-info mt-0.5 mr-2 text-base"></i>
+                <div>偵測到您未使用 LINE 開啟，請使用員工工號與密碼登入。（預設密碼為您的聯絡電話）</div>
+            </div>
+            <form onsubmit="handlePasswordLogin(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">員工編號 (工號)</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user-badge absolute left-3 top-3 text-gray-400"></i>
+                        <input type="text" id="login-empId" required placeholder="例如：001" class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500 font-mono">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">登入密碼</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3 top-3 text-gray-400"></i>
+                        <input type="password" id="login-password" required placeholder="請輸入密碼" class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-medium text-sm transition-all shadow-md shadow-indigo-100">
+                    安全驗證登入
+                </button>
+            </form>
+        </div>
+
+        <div id="punch-view" class="hidden space-y-5">
+            <div class="bg-indigo-50 rounded-2xl p-4 flex justify-between items-center">
+                <div>
+                    <p class="text-xs text-indigo-500 font-semibold font-mono" id="user-empid">EMP_ID</p>
+                    <h2 class="text-lg font-bold text-gray-800" id="user-name">員工姓名</h2>
+                </div>
+                <span class="bg-indigo-600 text-white text-xs px-2.5 py-1 rounded-lg font-semibold" id="login-method-tag">LINE 認證</span>
+            </div>
+
+            <div class="text-center bg-gray-50 rounded-xl py-3 border border-gray-100">
+                <div id="clock-time" class="text-2xl font-bold font-mono text-gray-800">00:00:00</div>
+                <div id="clock-date" class="text-xs text-gray-400 font-medium mt-0.5">2026 年 06 月 14 日</div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">打卡備註說明 (選填)</label>
+                <input type="text" id="punch-memo" placeholder="外勤公出、遲到說明等..." class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
             </div>
 
             <div class="grid grid-cols-2 gap-4">
-                <button onclick="handleClock('上班')" class="bg-white border border-gray-200 active:scale-95 transition-all rounded-2xl p-5 flex flex-col items-center justify-center shadow-sm hover:shadow-md group">
-                    <div class="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:bg-emerald-100 transition-colors">
-                        <i class="fa-solid fa-business-time"></i>
-                    </div>
-                    <span class="font-bold text-gray-800 text-base">上班打卡</span>
-                    <span class="text-xs text-gray-400 mt-1">建議 09:00 前</span>
+                <button onclick="executePunch('上班')" class="bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-bold text-base transition-all shadow-lg shadow-emerald-50 text-center block">
+                    <i class="fa-solid fa-sun text-xl block mb-1"></i>上班打卡
                 </button>
-
-                <button onclick="handleClock('下班')" class="bg-white border border-gray-200 active:scale-95 transition-all rounded-2xl p-5 flex flex-col items-center justify-center shadow-sm hover:shadow-md group">
-                    <div class="w-14 h-14 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center text-2xl mb-3 group-hover:bg-orange-100 transition-colors">
-                        <i class="fa-solid fa-mug-hot"></i>
-                    </div>
-                    <span class="font-bold text-gray-800 text-base">下班打卡</span>
-                    <span class="text-xs text-gray-400 mt-1">建議 18:00 後</span>
+                <button onclick="executePunch('下班')" class="bg-gray-700 hover:bg-gray-800 text-white py-4 rounded-2xl font-bold text-base transition-all shadow-lg shadow-gray-100 text-center block">
+                    <i class="fa-solid fa-moon text-xl block mb-1"></i>下班打卡
                 </button>
             </div>
+        </div>
 
-            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center">
-                    <i class="fa-solid fa-history mr-2 text-indigo-500"></i>今日打卡狀態
-                </h3>
-                <div class="space-y-3 text-sm">
-                    <div class="flex justify-between items-center pb-2 border-b border-gray-50">
-                        <span class="text-gray-500">上班時間</span>
-                        <span class="font-medium text-gray-400" id="todayClockIn">尚未打卡</span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-gray-500">下班時間</span>
-                        <span class="font-medium text-gray-400" id="todayClockOut">尚未打卡</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="page-form" class="hidden bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
-            <h2 class="text-lg font-bold text-gray-800 border-b pb-2">📋 表單申請</h2>
-            
-            <div>
-                <label class="block text-sm font-bold text-gray-700 mb-2">申請項目</label>
-                <div class="grid grid-cols-2 gap-2">
-                    <button type="button" onclick="toggleFormType('leave')" id="btn-type-leave" class="py-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold text-sm transition">
-                        請假申請
-                    </button>
-                    <button type="button" onclick="toggleFormType('overtime')" id="btn-type-overtime" class="py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition">
-                        加班申請
-                    </button>
-                </div>
-            </div>
-
-            <div id="leave-type-block">
-                <label class="block text-sm font-bold text-gray-700 mb-1">假別</label>
-                <select id="form-sub-type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
-                    <option value="事假">事假</option>
-                    <option value="病假">病假</option>
-                    <option value="特休">特休</option>
-                    <option value="婚假/喪假">婚假/喪假</option>
-                </select>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">開始日期時間</label>
-                    <input type="datetime-local" id="form-start-time" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">結束日期時間</label>
-                    <input type="datetime-local" id="form-end-time" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-sm font-bold text-gray-700 mb-1">合計申請時數 (小時)</label>
-                <input type="number" id="form-hours" placeholder="例如: 8" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
-            </div>
-
-            <div>
-                <label class="block text-sm font-bold text-gray-700 mb-1">事由 / 備註說明</label>
-                <textarea id="form-reason" rows="3" placeholder="請輸入具體原因..." class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"></textarea>
-            </div>
-
-            <button onclick="submitApplication()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-sm hover:bg-indigo-700 active:scale-98 transition-all text-sm">
-                送出申請單
-            </button>
-        </section>
-
-        <section id="page-history" class="hidden space-y-3">
-            <h2 class="text-lg font-bold text-gray-800 px-1">🔍 申請進度追蹤</h2>
-            
-            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-2">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">⏳ 審核中</span>
-                    <span class="text-xs text-gray-400">系統即時連動</span>
-                </div>
-                <div class="text-sm font-bold text-gray-800">請假/加班 雲端申請表單</div>
-                <div class="text-xs text-gray-500">送出表單後，主管可同步在後台進行簽核。</div>
-            </div>
-        </section>
-
-    </main>
-
-    <nav class="bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0 h-16 flex items-center justify-around px-2 shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.03)] z-50">
-        <button onclick="switchPage('clock')" id="nav-clock" class="flex flex-col items-center justify-center w-20 text-indigo-600 transition-colors">
-            <i class="fa-solid fa-clock-rotate-left text-xl"></i>
-            <span class="text-[11px] font-bold mt-1">打卡首頁</span>
-        </button>
-        <button onclick="switchPage('form')" id="nav-form" class="flex flex-col items-center justify-center w-20 text-gray-400 hover:text-gray-600 transition-colors">
-            <i class="fa-solid fa-file-pen text-xl"></i>
-            <span class="text-[11px] font-medium mt-1">表單申請</span>
-        </button>
-        <button onclick="switchPage('history')" id="nav-history" class="flex flex-col items-center justify-center w-20 text-gray-400 hover:text-gray-600 transition-colors">
-            <i class="fa-solid fa-list-check text-xl"></i>
-            <span class="text-[11px] font-medium mt-1">申請進度</span>
-        </button>
-    </nav>
-
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    </div>
 
     <script>
-        // --- 1. 全域變數宣告 ---
-        let GAS_WEB_APP_URL = "";
-        let currentFormType = 'leave';
-        
-        // 預設員工資訊（當 LINE LIFF 順利初始化後，會自動被真實 LINE 個資覆蓋）
-        const currentEmployee = { 
-            empId: "E001", 
-            name: "未登入員工" 
+        const GAS_URL = SYSTEM_ENV.GAS_WEB_APP_URL;
+        let CURRENT_USER = null; // 儲存登入成功的員工物件
+
+        window.onload = function() {
+            if (SYSTEM_ENV.COMPANY_NAME) {
+                document.getElementById('company-title').innerText = SYSTEM_ENV.COMPANY_NAME + " 行動打卡";
+            }
+            
+            // 啟動即時時鐘
+            setInterval(() => {
+                const now = new Date();
+                document.getElementById('clock-time').innerText = now.toTimeString().split(' ')[0];
+                document.getElementById('clock-date').innerText = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+            }, 1000);
+
+            // 初始化 LINE LIFF
+            initLiffSystem();
         };
 
-        // ⚠️【請填入你的 LIFF ID】
-        const MY_LIFF_ID = "2010383109-EolilvJ0"; 
-
-        // --- 2. 網頁事件監聽（載入環境變數與啟動時鐘） ---
-        window.addEventListener('DOMContentLoaded', () => {
-            updateClock();
-            setInterval(updateClock, 1000);
-
-            // 步驟 A：讀取設定檔 env.txt
-            fetch('env.txt')
-                .then(response => {
-                    if (!response.ok) throw new Error('檔案讀取失敗');
-                    return response.text();
-                })
-                .then(url => {
-                    GAS_WEB_APP_URL = url.trim();
-                    console.log("員工端 GAS 網址加載成功:", GAS_WEB_APP_URL);
-                    
-                    // 步驟 B：設定檔加載成功後，再啟動 LINE LIFF 登入機制
-                    initializeLiff();
-                })
-                .catch(error => {
-                    console.error("環境變數載入失敗:", error);
-                    alert("⚠️ 系統警報：無法載入 env.txt 設定檔。");
-                });
-        });
-
-        // --- 3. LINE LIFF 初始化與個資抓取功能 ---
-        function initializeLiff() {
-            if (MY_LIFF_ID === "2010383109-EolilvJ0" || MY_LIFF_ID === "") {
-                console.warn("提示：尚未填入真實的 LIFF ID，目前維持本地端測試模式。");
-                document.getElementById('userName').innerText = "測試張小明 (在地端)";
-                currentEmployee.name = "測試張小明";
+        // 初始化 LIFF 系統並自動判定環境
+        function initLiffSystem() {
+            if (!SYSTEM_ENV.LIFF_ID || SYSTEM_ENV.LIFF_ID.includes("XXXX")) {
+                // 如果環境檔沒設 LIFF，直接降級進入網頁帳密登入模式
+                showLoginView();
                 return;
             }
 
-            liff.init({ liffId: MY_LIFF_ID })
+            liff.init({ liffId: SYSTEM_ENV.LIFF_ID })
                 .then(() => {
-                    // 判斷使用者是否已在 LINE 環境中登入
-                    if (!liff.isLoggedIn()) {
-                        liff.login(); // 引導至 LINE 帳密登入頁面
+                    // 💡 關鍵判斷：檢查員工是否是在 LINE App 內部開啟
+                    if (liff.isInClient()) {
+                        liff.getProfile().then(profile => {
+                            const lineUid = profile.userId;
+                            verifyEmployeeByLineUid(lineUid); // 走 LINE UID 自動綁定登入
+                        }).catch(() => {
+                            showLoginView(); // 抓不到 Profile 轉傳統登入
+                        });
                     } else {
-                        // 已登入，抓取 LINE 使用者個人檔案
-                        liff.getProfile()
-                            .then(profile => {
-                                console.log("LINE Profile 撈取成功:", profile);
-                                
-                                // 覆蓋全域變數與網頁上的標籤名字
-                                currentEmployee.name = profile.displayName; 
-                                document.getElementById('userName').innerText = profile.displayName;
-                                
-                                // 替換頭貼為 LINE 真實大頭貼圖片
-                                if (profile.pictureUrl) {
-                                    document.getElementById('userAvatarContainer').innerHTML = `
-                                        <img src="${profile.pictureUrl}" class="w-full h-full rounded-full object-cover">`;
-                                }
-                            })
-                            .catch(err => console.error("抓取 LINE 個資失敗:", err));
+                        // 如果是用一般瀏覽器（Chrome/Safari）打開，直接顯示帳密登入
+                        showLoginView();
                     }
                 })
-                .catch(error => {
-                    console.error("LIFF 初始化失敗:", error);
+                .catch(err => {
+                    console.error("LIFF 初始化失敗:", err);
+                    showLoginView();
                 });
         }
 
-        // --- 4. 介面與功能函式定義 ---
-        function updateClock() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const date = String(now.getDate()).padStart(2, '0');
-            const dayNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-            document.getElementById('currentDate').innerText = `${year}年${month}月${date}日 ${dayNames[now.getDay()]}`;
-            document.getElementById('currentTime').innerText = now.toTimeString().split(' ')[0];
+        // 1. 透過 LINE UID 進行 1 對 1 綁定登入
+        function verifyEmployeeByLineUid(uid) {
+            const url = `${GAS_URL}?action=verifyLogin&lineUid=${encodeURIComponent(uid)}&_t=${new Date().getTime()}`;
+            fetch(url)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === "success") {
+                        CURRENT_USER = res.data;
+                        showPunchView("LINE 自動認證");
+                    } else {
+                        // 有 LINE UID 但資料庫對不到資料（尚未綁定）
+                        alert(`⚠️ 登入失敗：\n系統查無此 LINE 帳號的綁定資料。\n您的 LINE UID 為:\n${uid}\n\n請聯繫管理員在後台將此 UID 填入您的員工檔案中！`);
+                        document.getElementById('loading-view').innerHTML = `<div class="text-sm text-red-500 font-medium p-4">❌ 尚未開通權限，請將 UID 提供給管理員。</div>`;
+                    }
+                })
+                .catch(() => showLoginView());
         }
 
-        function switchPage(pageId) {
-            document.getElementById('page-clock').classList.add('hidden');
-            document.getElementById('page-form').classList.add('hidden');
-            document.getElementById('page-history').classList.add('hidden');
-            document.getElementById(`page-${pageId}`).classList.remove('hidden');
+        // 2. 傳統帳號密碼登入處理
+        function handlePasswordLogin(event) {
+            event.preventDefault();
+            const empId = document.getElementById('login-empId').value.trim();
+            const password = document.getElementById('login-password').value.trim();
 
-            ['clock', 'form', 'history'].forEach(nav => {
-                const btn = document.getElementById(`nav-${nav}`);
-                btn.className = "flex flex-col items-center justify-center w-20 text-gray-400";
-                btn.querySelector('span').className = "text-[11px] font-medium mt-1";
-            });
+            document.getElementById('login-view').classList.add('hidden');
+            document.getElementById('loading-view').classList.remove('hidden');
 
-            const activeBtn = document.getElementById(`nav-${pageId}`);
-            activeBtn.className = "flex flex-col items-center justify-center w-20 text-indigo-600";
-            activeBtn.querySelector('span').className = "text-[11px] font-bold mt-1";
-        }
-
-        function toggleFormType(type) {
-            currentFormType = type;
-            const btnLeave = document.getElementById('btn-type-leave');
-            const btnOvertime = document.getElementById('btn-type-overtime');
-            const leaveBlock = document.getElementById('leave-type-block');
-
-            if (type === 'leave') {
-                btnLeave.className = "py-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold text-sm transition";
-                btnOvertime.className = "py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition";
-                leaveBlock.classList.remove('hidden');
-            } else {
-                btnOvertime.className = "py-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold text-sm transition";
-                btnLeave.className = "py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition";
-                leaveBlock.classList.add('hidden');
-            }
-        }
-
-        function handleClock(type) {
-            if (!GAS_WEB_APP_URL) { 
-                alert("❌ 連線失敗：尚未成功載入 GAS 雲端網址，請確認 env.txt 設定。"); 
-                return; 
-            }
-            const nowTime = document.getElementById('currentTime').innerText;
+            const url = `${GAS_URL}?action=verifyPasswordLogin&empId=${encodeURIComponent(empId)}&password=${encodeURIComponent(password)}&_t=${new Date().getTime()}`;
             
-            const payload = {
-                action: "clockInOut",
-                empId: currentEmployee.empId,
-                name: currentEmployee.name,
+            fetch(url)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === "success") {
+                        CURRENT_USER = res.data;
+                        CURRENT_USER.empId = empId; // 確保帶入正確工號
+                        showPunchView("帳密安全登入");
+                    } else {
+                        alert("❌ 登入失敗：" + res.message);
+                        document.getElementById('loading-view').classList.add('hidden');
+                        document.getElementById('login-view').classList.remove('hidden');
+                    }
+                })
+                .catch(() => {
+                    alert("網路連線異常");
+                    showLoginView();
+                });
+        }
+
+        // 執行打卡動作 (傳送至後端儲存)
+        function executePunch(type) {
+            if (!CURRENT_USER) return alert("認證逾期，請重新整理網頁");
+            
+            const memo = document.getElementById('punch-memo').value.trim();
+            
+            // 打卡傳送的封包
+            const punchData = {
+                action: "addAttendanceLog", // 對應您後端原有的打卡紀錄 action
+                empId: CURRENT_USER.empId,
+                name: CURRENT_USER.name,
                 type: type,
-                memo: "LINE 現場打卡"
+                memo: memo
             };
 
-            fetch(GAS_WEB_APP_URL, {
+            // 注意：這裡假設您的後端有一個 doPost 可以接收 action: "addAttendanceLog"
+            // 請確保後端對應的寫入打卡工作表邏輯正常
+            fetch(GAS_URL, {
                 method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "text/plain;charset=utf-8" },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(punchData)
             })
-            .then(() => {
-                alert(`🎉 系統已成功寫入：${type}打卡紀錄！\n打卡員工：${currentEmployee.name}\n時間：${nowTime}`);
-                if (type === '上班') {
-                    document.getElementById('todayClockIn').innerText = `${nowTime} (成功)`;
-                    document.getElementById('todayClockIn').className = "font-medium text-emerald-600";
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === "success") {
+                    alert(`🎉 【${CURRENT_USER.name}】${type}打卡成功！\n時間：${new Date().toLocaleTimeString()}`);
+                    document.getElementById('punch-memo').value = ""; // 清空備註
                 } else {
-                    document.getElementById('todayClockOut').innerText = `${nowTime} (成功)`;
-                    document.getElementById('todayClockOut').className = "font-medium text-emerald-600";
+                    alert("打卡失敗：" + res.message);
                 }
             })
-            .catch(error => {
-                console.error("API 錯誤:", error);
-                alert("打卡連線發生錯誤。");
-            });
+            .catch(() => alert("打卡失敗，請檢查網路連線或 GAS 權限設定。"));
         }
 
-        function submitApplication() {
-            if (!GAS_WEB_APP_URL) { alert("❌ 連線失敗：尚未載入設定網址。"); return; }
-            const subType = document.getElementById('form-sub-type').value;
-            const startTime = document.getElementById('form-start-time').value;
-            const endTime = document.getElementById('form-end-time').value;
-            const totalHours = document.getElementById('form-hours').value;
-            const reason = document.getElementById('form-reason').value;
-
-            if (!startTime || !endTime || !totalHours || !reason) {
-                alert("請完整填寫表單上的日期、時數及事由！");
-                return;
-            }
-
-            const payload = {
-                action: "submitForm",
-                empId: currentEmployee.empId,
-                name: currentEmployee.name,
-                formType: currentFormType === 'leave' ? '請假' : '加班',
-                subType: currentFormType === 'leave' ? subType : "一般加班",
-                startTime: startTime.replace("T", " "),
-                endTime: endTime.replace("T", " "),
-                totalHours: totalHours,
-                reason: reason
-            };
-
-            fetch(GAS_WEB_APP_URL, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "text/plain;charset=utf-8" },
-                body: JSON.stringify(payload)
-            })
-            .then(() => {
-                alert(`📋 表單已順利上傳！\n申請人：${currentEmployee.name}\n等待主管核簽。`);
-                document.getElementById('form-start-time').value = "";
-                document.getElementById('form-end-time').value = "";
-                document.getElementById('form-hours').value = "";
-                document.getElementById('form-reason').value = "";
-                switchPage('history');
-            })
-            .catch(error => {
-                console.error("API 錯誤:", error);
-                alert("表單送出失敗。");
-            });
+        // 介面切換輔助
+        function showLoginView() {
+            document.getElementById('loading-view').classList.add('hidden');
+            document.getElementById('punch-view').classList.add('hidden');
+            document.getElementById('login-view').classList.remove('hidden');
         }
 
-        function handleLogout() {
-            if (liff.isLoggedIn()) {
-                liff.logout();
-                alert("已成功登出 LINE 綁定狀態。");
-                location.reload();
-            } else {
-                alert("目前非 LIFF 登入狀態。");
-            }
+        function showPunchView(methodName) {
+            document.getElementById('loading-view').classList.add('hidden');
+            document.getElementById('login-view').classList.add('hidden');
+            
+            document.getElementById('user-empid').innerText = "工號：" + CURRENT_USER.empId;
+            document.getElementById('user-name').innerText = CURRENT_USER.name;
+            document.getElementById('login-method-tag').innerText = methodName;
+            
+            document.getElementById('punch-view').classList.remove('hidden');
         }
     </script>
 </body>
