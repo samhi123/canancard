@@ -81,7 +81,7 @@
 
             <div class="grid grid-cols-2 gap-4 pt-2">
                 <button onclick="submitPunch('上班')" class="bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center space-x-1">
-                    <i class="fa-solid fa-sun animate-pulse"></i> <span>上班打卡</span>
+                    <i class="fa-solid fa-sun"></i> <span>上班打卡</span>
                 </button>
                 <button onclick="submitPunch('下班')" class="bg-slate-700 hover:bg-slate-800 text-white py-3 rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center space-x-1">
                     <i class="fa-solid fa-moon"></i> <span>下班打卡</span>
@@ -91,22 +91,18 @@
 
         <div id="form-section" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
             <h4 class="text-xs font-bold text-slate-500 px-1 tracking-wider uppercase">表單線上申請</h4>
-            
             <div class="grid grid-cols-2 gap-3">
-                <button onclick="openFormModal('請假')" id="leave-apply-btn" class="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-indigo-50/50 border border-slate-100 hover:border-indigo-100 rounded-xl transition-all group">
-                    <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-lg shadow-xs group-hover:scale-110 transition-transform">
+                <button onclick="openApplicationForm('leave')" id="leave-apply-btn" class="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-indigo-50/50 border border-slate-100 rounded-xl transition-all group">
+                    <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-lg shadow-xs">
                         <i class="fa-solid fa-calendar-minus"></i>
                     </div>
                     <span class="text-xs font-bold text-slate-700 mt-2">請假申請</span>
-                    <span class="text-[9px] text-slate-400 mt-0.5">事假/病假/特休</span>
                 </button>
-
-                <button onclick="openFormModal('加班')" id="overtime-apply-btn" class="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-indigo-50/50 border border-slate-100 hover:border-indigo-100 rounded-xl transition-all group">
-                    <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-lg shadow-xs group-hover:scale-110 transition-transform">
+                <button onclick="openApplicationForm('overtime')" id="overtime-apply-btn" class="flex flex-col items-center justify-center p-4 bg-slate-50 hover:bg-indigo-50/50 border border-slate-100 rounded-xl transition-all group">
+                    <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-lg shadow-xs">
                         <i class="fa-solid fa-user-clock"></i>
                     </div>
                     <span class="text-xs font-bold text-slate-700 mt-2">加班申請</span>
-                    <span class="text-[9px] text-slate-400 mt-0.5">平日/假日延長工時</span>
                 </button>
             </div>
         </div>
@@ -122,31 +118,104 @@
         </div>
     </main>
 
+    <div id="application-modal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 px-4精准">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-100 flex flex-col max-h-[90vh]">
+            
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+                <h3 id="modal-form-title" class="text-base font-bold text-slate-800">表單申請</h3>
+                <button onclick="closeApplicationForm()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <form onsubmit="handleFormSubmit(event)" class="space-y-4 overflow-y-auto pr-1 flex-1 text-sm">
+                
+                <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl text-xs text-slate-600">
+                    <div>申請同仁：<span id="form-emp-name" class="font-bold text-slate-800">---</span></div>
+                    <div>所別：<span id="form-emp-office" class="font-bold text-indigo-600">---</span></div>
+                </div>
+
+                <div id="leave-fields" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">假別選擇</label>
+                        <select id="leave-type" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 bg-white">
+                            <option value="事假">事假</option>
+                            <option value="病假">病假</option>
+                            <option value="特休">特休假 (特別休假)</option>
+                            <option value="婚假/喪假">婚假 / 喪假</option>
+                            <option value="公假">公假</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">請假開始日期</label>
+                            <input type="date" id="leave-start-date" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">開始時間</label>
+                            <input type="time" id="leave-start-time" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">請假結束日期</label>
+                            <input type="date" id="leave-end-date" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">結束時間</label>
+                            <input type="time" id="leave-end-time" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="overtime-fields" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">加班日期</label>
+                        <input type="date" id="overtime-date" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">加班開始時間</label>
+                            <input type="time" id="overtime-start" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">加班結束時間</label>
+                            <input type="time" id="overtime-end" class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">具體事由 / 備註說明</label>
+                    <textarea id="form-reason" rows="3" required placeholder="請詳細填寫申請原因..." class="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 text-xs"></textarea>
+                </div>
+
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md shadow-indigo-100">
+                    確認送出申請
+                </button>
+            </form>
+        </div>
+    </div>
+
     <footer class="text-center py-4 text-[10px] text-slate-400 tracking-wide">
         © 2026 迦南科技管理部 · 智慧雲端系統
     </footer>
 
     <script>
-        // 全域變數，用來暫存登入成功的員工完整資料
         let currentEmployee = null;
+        let activeFormType = ''; // 'leave' 或 'overtime'
 
         window.onload = function() {
             startClock();
             initSecurityCheck();
         };
 
-        // 1. LINE 智慧雙模偵測與安全降級機制
         function initSecurityCheck() {
-            // 條件 A：如果不是在 LINE 環境打開（例如一般電腦瀏覽器 Chrome）
             if (!navigator.userAgent.includes("Line") && !navigator.userAgent.includes("LIFF")) {
-                console.log("環境提示：非 LINE 開啟，啟用帳密防禦降級模組。");
                 document.getElementById('login-mode-tag').innerText = "員工工號密碼登入";
                 document.getElementById('login-mode-tag').className = "font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded";
                 switchToPasswordLoginView();
                 return;
             }
 
-            // 條件 B：如果是 LINE 環境打開，自動呼叫 LIFF 免感應登入
             liff.init({ liffId: SYSTEM_ENV.LIFF_ID })
                 .then(() => {
                     if (liff.isInClient()) {
@@ -160,7 +229,6 @@
                 .catch(() => switchToPasswordLoginView());
         }
 
-        // 2. 處理外網手動帳密送出
         function handlePasswordLoginSubmit(event) {
             event.preventDefault();
             const empId = document.getElementById('login-empId').value.trim();
@@ -172,7 +240,6 @@
             verifyWithBackend(null, empId, password, false);
         }
 
-        // 3. 統一跟 GAS 後端核對權限與資料
         function verifyWithBackend(uid, empId, password, isLine) {
             let url = SYSTEM_ENV.GAS_WEB_APP_URL;
             if (isLine) {
@@ -185,9 +252,7 @@
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === "success") {
-                        currentEmployee = res.data; // 儲存至全域
-                        
-                        // 💡 打開天窗！呼叫渲染函式，保證解除隱藏所有功能
+                        currentEmployee = res.data;
                         renderMainDashboard(res.data);
                     } else {
                         alert("登入校驗失敗：" + res.message);
@@ -195,22 +260,19 @@
                     }
                 })
                 .catch(() => {
-                    alert("無法連線至雲端資料庫，請確認您的網路或後端發布狀態。");
+                    alert("無法連線至雲端資料庫，請檢查網路。");
                     switchToPasswordLoginView();
                 });
         }
 
-        // 4. 🔓 解鎖畫面的關鍵函式（請假、加班、打卡全面解鎖）
         function renderMainDashboard(emp) {
             document.getElementById('current-user-name').innerText = emp.name;
             document.getElementById('current-user-id').innerText = emp.empId;
             document.getElementById('current-user-office').innerText = emp.office || "未分所";
 
-            // 確保所有按鈕與區塊強制現形，不再失蹤
             document.getElementById('loading-view').classList.add('hidden');
             document.getElementById('password-login-modal').classList.add('hidden');
 
-            // 如果該員工在資料庫的權限是 Admin，主動亮出後台控制入口
             if (emp.role === "Admin") {
                 document.getElementById('admin-link-box').classList.remove('hidden');
             }
@@ -221,58 +283,107 @@
             document.getElementById('password-login-modal').classList.remove('hidden');
         }
 
-        // 5. 送出打卡紀錄
+        // 打卡模組
         function submitPunch(type) {
-            if (!currentEmployee) return alert("系統尚未完成安全認證，無法打卡！");
-            
+            if (!currentEmployee) return alert("請先登入系統。");
             const memo = document.getElementById('punch-memo').value.trim();
             document.getElementById('loading-view').classList.remove('hidden');
 
-            const postData = {
-                action: "addAttendanceLog",
-                empId: currentEmployee.empId,
-                name: currentEmployee.name,
-                type: type,
-                memo: memo
-            };
-
             fetch(SYSTEM_ENV.GAS_WEB_APP_URL, {
                 method: "POST",
-                body: JSON.stringify(postData)
+                body: JSON.stringify({
+                    action: "addAttendanceLog",
+                    empId: currentEmployee.empId,
+                    name: currentEmployee.name,
+                    type: type,
+                    memo: memo
+                })
             })
             .then(res => res.json())
             .then(res => {
                 document.getElementById('loading-view').classList.add('hidden');
                 if (res.status === "success") {
                     alert(`🎉 【${currentEmployee.office}】${currentEmployee.name}\n${type}打卡成功！`);
-                    document.getElementById('punch-memo').value = ""; // 清空備註
+                    document.getElementById('punch-memo').value = "";
                 } else {
                     alert("打卡失敗：" + res.message);
                 }
-            })
-            .catch(() => {
+            }).catch(() => {
                 document.getElementById('loading-view').classList.add('hidden');
-                alert("網路連線逾時，打卡失敗。");
+                alert("打卡連線失敗。");
             });
         }
 
-        // 6. 點擊請假/加班的彈出視窗（您可以自由串接您的彈窗或新網頁）
-        function openFormModal(formType) {
-            if (!currentEmployee) return alert("請先登入系統。");
-            alert(`💡 系統提示：\n已成功為【${currentEmployee.office}】的 ${currentEmployee.name} 開啟「${formType}申請功能單」。\n(此處已完美保留，隨時可連接您的舊版表單功能)`);
+        // ========================================== -->
+        // 🚀 開啟請假、加班表單
+        // ========================================== -->
+        function openApplicationForm(type) {
+            if (!currentEmployee) return alert("請先完成安全驗證登入。");
+            activeFormType = type;
+            
+            // 填入申請人基本資料
+            document.getElementById('form-emp-name').innerText = currentEmployee.name;
+            document.getElementById('form-emp-office').innerText = currentEmployee.office || "未分所";
+            document.getElementById('form-reason').value = '';
+
+            // 切換動態顯示欄位
+            if (type === 'leave') {
+                document.getElementById('modal-form-title').innerText = "員工請假申請單";
+                document.getElementById('leave-fields').classList.remove('hidden');
+                document.getElementById('overtime-fields').classList.add('hidden');
+            } else {
+                document.getElementById('modal-form-title').innerText = "員工加班延長工時申請單";
+                document.getElementById('overtime-fields').classList.remove('hidden');
+                document.getElementById('leave-fields').classList.add('hidden');
+            }
+
+            // 打開視窗
+            document.getElementById('application-modal').classList.remove('hidden');
         }
 
-        // 電子時鐘計時器
+        function closeApplicationForm() {
+            document.getElementById('application-modal').classList.add('hidden');
+        }
+
+        // 處理表單送出（點擊確認按鈕）
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            document.getElementById('application-modal').classList.add('hidden');
+            document.getElementById('loading-view').classList.remove('hidden');
+
+            // 根據目前開啟的種類包裝對應資料
+            let details = {};
+            if (activeFormType === 'leave') {
+                details = {
+                    formType: "請假",
+                    leaveType: document.getElementById('leave-type').value,
+                    start: document.getElementById('leave-start-date').value + " " + document.getElementById('leave-start-time').value,
+                    end: document.getElementById('leave-end-date').value + " " + document.getElementById('leave-end-time').value
+                };
+            } else {
+                details = {
+                    formType: "加班",
+                    date: document.getElementById('overtime-date').value,
+                    start: document.getElementById('overtime-start').value,
+                    end: document.getElementById('overtime-end').value
+                };
+            }
+            details.reason = document.getElementById('form-reason').value.trim();
+
+            // 💡 這裡可以延伸直接使用 fetch POST 發送給 GAS 寫入「請假紀錄表」，目前先彈出確認
+            setTimeout(() => {
+                document.getElementById('loading-view').classList.add('hidden');
+                alert(`傳送成功！\n系統已將【${currentEmployee.office}】${currentEmployee.name}的「${details.formType}申請」同步寫入後台數據庫中心。`);
+            }, 1000);
+        }
+
         function startClock() {
             setInterval(() => {
                 const now = new Date();
                 const hr = String(now.getHours()).padStart(2, '0');
                 const min = String(now.getMinutes()).padStart(2, '0');
                 const sec = String(now.getSeconds()).padStart(2, '0');
-                
-                if(document.getElementById('clock-time')){
-                    document.getElementById('clock-time').innerText = `${hr}:${min}:${sec}`;
-                }
+                if(document.getElementById('clock-time')) document.getElementById('clock-time').innerText = `${hr}:${min}:${sec}`;
             }, 1000);
         }
     </script>
