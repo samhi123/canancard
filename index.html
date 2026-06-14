@@ -4,135 +4,184 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>企業雲端行動打卡系統</title>
+    <!-- 引入 Tailwind CSS 與 FontAwesome 圖示 -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 引入 LINE LIFF SDK -->
     <script src="https://static.liff.line.me/edge/2/sdk.js"></script>
+    <!-- 引入您的環境設定檔 (包含 GAS_WEB_APP_URL 與 LIFF_ID) -->
     <script src="env.js"></script>
     <style>
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f3f4f6; }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
+<body class="min-h-screen bg-gray-100">
 
-    <div class="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-100 p-6">
+    <!-- ======================================================= -->
+    <!-- 頂部導覽列：動態員工資訊區 (修正：移除寫死的測試張小明) -->
+    <!-- ======================================================= -->
+    <nav id="main-nav" class="hidden bg-white shadow-sm border-b border-gray-200 px-4 py-3">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <!-- 員工大頭貼圖示 -->
+                <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                    <i class="fa-solid fa-user animate-pulse"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <!-- 動態變數：姓名 -->
+                        <span id="nav-user-name" class="font-bold text-gray-800 text-base">載入中...</span>
+                        <!-- 動態變數：職級標籤 -->
+                        <span id="nav-user-role" class="bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 rounded-full font-medium">員工</span>
+                    </div>
+                    <!-- 動態變數：工號 -->
+                    <p class="text-xs text-gray-500 mt-0.5">
+                        工號：<span id="nav-user-empid" class="font-mono font-medium">---</span> · 行動端打卡
+                    </p>
+                </div>
+            </div>
+            <!-- 登出按鈕 -->
+            <button onclick="handleLogout()" class="text-gray-400 hover:text-red-600 text-sm font-medium transition-colors flex items-center space-x-1">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span>登出</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- 主容器 -->
+    <div class="max-w-md mx-auto px-4 pt-8 pb-12 flex flex-col justify-center min-h-[calc(100-64px)]">
         
-        <div class="text-center mb-6">
-            <h1 id="company-title" class="text-xl font-bold text-gray-800">行動打卡系統</h1>
-            <p class="text-xs text-gray-400 mt-1">智慧差勤 · 雲端同步</p>
-        </div>
-
-        <div id="loading-view" class="text-center py-8">
-            <i class="fa-solid fa-spinner animate-spin text-3xl text-indigo-600 mb-3"></i>
-            <p class="text-sm text-gray-500">正在安全驗證登入環境...</p>
-        </div>
-
-        <div id="login-view" class="hidden space-y-4">
-            <div class="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-xl text-xs flex items-start">
-                <i class="fa-solid fa-circle-info mt-0.5 mr-2 text-base"></i>
-                <div>偵測到您未使用 LINE 開啟，請使用員工工號與密碼登入。（預設密碼為您的聯絡電話）</div>
+        <div class="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 w-full">
+            
+            <!-- 系統企業頂部標題 -->
+            <div class="text-center mb-6">
+                <h1 id="company-title" class="text-xl font-bold text-gray-800">行動打卡系統</h1>
+                <p class="text-xs text-gray-400 mt-1">智慧差勤 · 雲端同步</p>
             </div>
-            <form onsubmit="handlePasswordLogin(event)" class="space-y-3">
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">員工編號 (工號)</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-user-badge absolute left-3 top-3 text-gray-400"></i>
-                        <input type="text" id="login-empId" required placeholder="例如：001" class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500 font-mono">
+
+            <!-- ========================================== -->
+            <!-- 狀態一：環境初始化/安全驗證讀取中 -->
+            <!-- ========================================== -->
+            <div id="loading-view" class="text-center py-8">
+                <i class="fa-solid fa-spinner animate-spin text-3xl text-indigo-600 mb-3"></i>
+                <p class="text-sm text-gray-500">正在安全驗證差勤登入環境...</p>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- 狀態二：非 LINE 環境 -> 真正生效的【帳號密碼登入介面】 -->
+            <!-- ========================================== -->
+            <div id="login-view" class="hidden space-y-4">
+                <div class="bg-amber-50 border border-amber-200 text-amber-800 p-3 rounded-xl text-xs flex items-start">
+                    <i class="fa-solid fa-circle-info mt-0.5 mr-2 text-base text-amber-600"></i>
+                    <div>系統偵測到您目前未使用 LINE 開啟。請改用您的「員工工號」與「密碼」進行安全登入。（預設密碼為您的人事聯絡電話）</div>
+                </div>
+                
+                <form onsubmit="handlePasswordLogin(event)" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">員工編號 (工號)</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-id-card-clip absolute left-3 top-3 text-gray-400"></i>
+                            <input type="text" id="login-empId" required placeholder="請輸入工號，例如：002" class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500 font-mono">
+                        </div>
                     </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-1">登入密碼</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-lock absolute left-3 top-3 text-gray-400"></i>
-                        <input type="password" id="login-password" required placeholder="請輸入密碼" class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">登入密碼</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-lock absolute left-3 top-3 text-gray-400"></i>
+                            <input type="password" id="login-password" required placeholder="請輸入密碼" class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
+                        </div>
                     </div>
-                </div>
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-medium text-sm transition-all shadow-md shadow-indigo-100">
-                    安全驗證登入
-                </button>
-            </form>
-        </div>
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-medium text-sm transition-all shadow-md shadow-indigo-100">
+                        驗證並登入系統
+                    </button>
+                </form>
+            </div>
 
-        <div id="punch-view" class="hidden space-y-5">
-            <div class="bg-indigo-50 rounded-2xl p-4 flex justify-between items-center">
+            <!-- ========================================== -->
+            <!-- 狀態三：驗證成功 -> 顯示【即時上下班打卡功能面板】 -->
+            <!-- ========================================== -->
+            <div id="punch-view" class="hidden space-y-5">
+                <!-- 驗證方式狀態條 -->
+                <div class="flex justify-between items-center bg-gray-50 border border-gray-100 px-3 py-2 rounded-xl text-xs">
+                    <span class="text-gray-500 font-medium">安全認證模式：</span>
+                    <span id="login-method-tag" class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">LINE 快速登入</span>
+                </div>
+
+                <!-- 即時動態電子時鐘 -->
+                <div class="text-center bg-gray-900 rounded-2xl py-4 shadow-inner shadow-black/20">
+                    <div id="clock-time" class="text-3xl font-bold font-mono text-emerald-400 tracking-wider">00:00:00</div>
+                    <div id="clock-date" class="text-xs text-gray-400 font-medium mt-1">2026 年 06 月 14 日</div>
+                </div>
+
+                <!-- 打卡備註欄位 -->
                 <div>
-                    <p class="text-xs text-indigo-500 font-semibold font-mono" id="user-empid">EMP_ID</p>
-                    <h2 class="text-lg font-bold text-gray-800" id="user-name">員工姓名</h2>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">打卡備註說明 (選填)</label>
+                    <input type="text" id="punch-memo" placeholder="如公出、外勤、遲到說明..." class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
                 </div>
-                <span class="bg-indigo-600 text-white text-xs px-2.5 py-1 rounded-lg font-semibold" id="login-method-tag">LINE 認證</span>
+
+                <!-- 上下班大功能按鈕 -->
+                <div class="grid grid-cols-2 gap-4 pt-2">
+                    <button onclick="executePunch('上班')" class="bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-bold text-base transition-all shadow-lg shadow-emerald-100 text-center block cursor-pointer">
+                        <i class="fa-solid fa-sun text-xl block mb-1 animate-spin-slow"></i>上班打卡
+                    </button>
+                    <button onclick="executePunch('下班')" class="bg-slate-700 hover:bg-slate-800 text-white py-4 rounded-2xl font-bold text-base transition-all shadow-lg shadow-slate-200 text-center block cursor-pointer">
+                        <i class="fa-solid fa-moon text-xl block mb-1"></i>下班打卡
+                    </button>
+                </div>
             </div>
 
-            <div class="text-center bg-gray-50 rounded-xl py-3 border border-gray-100">
-                <div id="clock-time" class="text-2xl font-bold font-mono text-gray-800">00:00:00</div>
-                <div id="clock-date" class="text-xs text-gray-400 font-medium mt-0.5">2026 年 06 月 14 日</div>
-            </div>
-
-            <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1">打卡備註說明 (選填)</label>
-                <input type="text" id="punch-memo" placeholder="外勤公出、遲到說明等..." class="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <button onclick="executePunch('上班')" class="bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-bold text-base transition-all shadow-lg shadow-emerald-50 text-center block">
-                    <i class="fa-solid fa-sun text-xl block mb-1"></i>上班打卡
-                </button>
-                <button onclick="executePunch('下班')" class="bg-gray-700 hover:bg-gray-800 text-white py-4 rounded-2xl font-bold text-base transition-all shadow-lg shadow-gray-100 text-center block">
-                    <i class="fa-solid fa-moon text-xl block mb-1"></i>下班打卡
-                </button>
-            </div>
         </div>
-
     </div>
 
     <script>
         const GAS_URL = SYSTEM_ENV.GAS_WEB_APP_URL;
-        let CURRENT_USER = null; // 儲存登入成功的員工物件
+        let CURRENT_USER = null; // 儲存經後端安全驗證後的員工核心資料
 
         window.onload = function() {
+            // 動態替換企業名稱
             if (SYSTEM_ENV.COMPANY_NAME) {
                 document.getElementById('company-title').innerText = SYSTEM_ENV.COMPANY_NAME + " 行動打卡";
             }
             
-            // 啟動即時時鐘
+            // 啟動前台即時時鐘每秒跑動
             setInterval(() => {
                 const now = new Date();
                 document.getElementById('clock-time').innerText = now.toTimeString().split(' ')[0];
                 document.getElementById('clock-date').innerText = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
             }, 1000);
 
-            // 初始化 LINE LIFF
+            // 啟動 LINE 認證流程
             initLiffSystem();
         };
 
-        // 初始化 LIFF 系統並自動判定環境
+        // 初始化 LIFF
         function initLiffSystem() {
             if (!SYSTEM_ENV.LIFF_ID || SYSTEM_ENV.LIFF_ID.includes("XXXX")) {
-                // 如果環境檔沒設 LIFF，直接降級進入網頁帳密登入模式
-                showLoginView();
+                showLoginView(); // 若未設定 LIFF ID，直接降級開啟密碼登入
                 return;
             }
 
             liff.init({ liffId: SYSTEM_ENV.LIFF_ID })
                 .then(() => {
-                    // 💡 關鍵判斷：檢查員工是否是在 LINE App 內部開啟
+                    // 💡 核心環境判斷：是否在 LINE 內部開啟
                     if (liff.isInClient()) {
                         liff.getProfile().then(profile => {
-                            const lineUid = profile.userId;
-                            verifyEmployeeByLineUid(lineUid); // 走 LINE UID 自動綁定登入
+                            verifyEmployeeByLineUid(profile.userId); // 走 LINE UID 1對1免密碼綁定登入
                         }).catch(() => {
-                            showLoginView(); // 抓不到 Profile 轉傳統登入
+                            showLoginView(); 
                         });
                     } else {
-                        // 如果是用一般瀏覽器（Chrome/Safari）打開，直接顯示帳密登入
+                        // 關鍵修正：若在外部瀏覽器（Chrome/Safari等），「立刻生效」彈出密碼登入畫面，且不顯示張小明
                         showLoginView();
                     }
                 })
                 .catch(err => {
-                    console.error("LIFF 初始化失敗:", err);
+                    console.error("LIFF 啟用失敗，切換至傳統密碼模式:", err);
                     showLoginView();
                 });
         }
 
-        // 1. 透過 LINE UID 進行 1 對 1 綁定登入
+        // 1. 後端驗證：LINE UID 模式
         function verifyEmployeeByLineUid(uid) {
             const url = `${GAS_URL}?action=verifyLogin&lineUid=${encodeURIComponent(uid)}&_t=${new Date().getTime()}`;
             fetch(url)
@@ -140,22 +189,22 @@
                 .then(res => {
                     if (res.status === "success") {
                         CURRENT_USER = res.data;
-                        showPunchView("LINE 自動認證");
+                        showPunchView("LINE 自動安全認證");
                     } else {
-                        // 有 LINE UID 但資料庫對不到資料（尚未綁定）
-                        alert(`⚠️ 登入失敗：\n系統查無此 LINE 帳號的綁定資料。\n您的 LINE UID 為:\n${uid}\n\n請聯繫管理員在後台將此 UID 填入您的員工檔案中！`);
-                        document.getElementById('loading-view').innerHTML = `<div class="text-sm text-red-500 font-medium p-4">❌ 尚未開通權限，請將 UID 提供給管理員。</div>`;
+                        alert(`⚠️ 系統提示：\n您的 LINE 帳號尚未與後台員工檔案進行對應綁定。\n\n請將您的 LINE UID 提供給管理員：\n${uid}`);
+                        document.getElementById('loading-view').innerHTML = `<div class="text-sm text-red-500 font-medium p-4 bg-red-50 rounded-xl border border-red-100">❌ 權限未開通，請先聯繫管理員綁定 LINE 帳號。</div>`;
                     }
                 })
                 .catch(() => showLoginView());
         }
 
-        // 2. 傳統帳號密碼登入處理
+        // 2. 後端驗證：非 LINE 環境的【帳號密碼登入模式】
         function handlePasswordLogin(event) {
             event.preventDefault();
             const empId = document.getElementById('login-empId').value.trim();
             const password = document.getElementById('login-password').value.trim();
 
+            // 轉換至讀取狀態
             document.getElementById('login-view').classList.add('hidden');
             document.getElementById('loading-view').classList.remove('hidden');
 
@@ -166,8 +215,8 @@
                 .then(res => {
                     if (res.status === "success") {
                         CURRENT_USER = res.data;
-                        CURRENT_USER.empId = empId; // 確保帶入正確工號
-                        showPunchView("帳密安全登入");
+                        CURRENT_USER.empId = empId; // 確保工號欄位對齊
+                        showPunchView("員工工號密碼登入");
                     } else {
                         alert("❌ 登入失敗：" + res.message);
                         document.getElementById('loading-view').classList.add('hidden');
@@ -175,28 +224,24 @@
                     }
                 })
                 .catch(() => {
-                    alert("網路連線異常");
+                    alert("連線後端錯誤，請確認 GAS 部署是否正確發布。");
                     showLoginView();
                 });
         }
 
-        // 執行打卡動作 (傳送至後端儲存)
+        // 3. 處理打卡寫入工作表
         function executePunch(type) {
-            if (!CURRENT_USER) return alert("認證逾期，請重新整理網頁");
+            if (!CURRENT_USER) return alert("連線逾期，請刷新頁面重新登入");
             
             const memo = document.getElementById('punch-memo').value.trim();
-            
-            // 打卡傳送的封包
             const punchData = {
-                action: "addAttendanceLog", // 對應您後端原有的打卡紀錄 action
+                action: "addAttendanceLog",
                 empId: CURRENT_USER.empId,
                 name: CURRENT_USER.name,
                 type: type,
                 memo: memo
             };
 
-            // 注意：這裡假設您的後端有一個 doPost 可以接收 action: "addAttendanceLog"
-            // 請確保後端對應的寫入打卡工作表邏輯正常
             fetch(GAS_URL, {
                 method: "POST",
                 body: JSON.stringify(punchData)
@@ -204,30 +249,45 @@
             .then(res => res.json())
             .then(res => {
                 if (res.status === "success") {
-                    alert(`🎉 【${CURRENT_USER.name}】${type}打卡成功！\n時間：${new Date().toLocaleTimeString()}`);
-                    document.getElementById('punch-memo').value = ""; // 清空備註
+                    alert(`🎉 打卡成功！\n【${CURRENT_USER.name}】已完成 ${type} 簽到。\n時間：${new Date().toLocaleTimeString('zh-TW', {hour12:false})}`);
+                    document.getElementById('punch-memo').value = ""; // 清空輸入框
                 } else {
                     alert("打卡失敗：" + res.message);
                 }
             })
-            .catch(() => alert("打卡失敗，請檢查網路連線或 GAS 權限設定。"));
+            .catch(() => alert("打卡失敗，請檢查網路連線。"));
         }
 
-        // 介面切換輔助
+        // 登出切換機制
+        function handleLogout() {
+            CURRENT_USER = null;
+            document.getElementById('main-nav').classList.add('hidden');
+            showLoginView();
+        }
+
+        // 畫面控制：切換至【登入輸入框】
         function showLoginView() {
             document.getElementById('loading-view').classList.add('hidden');
             document.getElementById('punch-view').classList.add('hidden');
+            document.getElementById('main-nav').classList.add('hidden'); // 確保上方導覽列不出現
             document.getElementById('login-view').classList.remove('hidden');
         }
 
+        // 畫面控制：驗證成功切換至【打卡面板】(關鍵修正：此處才寫入員工資訊)
         function showPunchView(methodName) {
             document.getElementById('loading-view').classList.add('hidden');
             document.getElementById('login-view').classList.add('hidden');
             
-            document.getElementById('user-empid').innerText = "工號：" + CURRENT_USER.empId;
-            document.getElementById('user-name').innerText = CURRENT_USER.name;
+            // 💡 關鍵修正：從後端資料庫回傳的真實資料，動態填入左上角導覽列
+            document.getElementById('nav-user-name').innerText = CURRENT_USER.name;
+            document.getElementById('nav-user-empid').innerText = CURRENT_USER.empId;
+            document.getElementById('nav-user-role').innerText = CURRENT_USER.role === "Admin" ? "最高管理員" : "在職員工";
+            
+            // 填入中段的登入標籤
             document.getElementById('login-method-tag').innerText = methodName;
             
+            // 打開上方導覽列與打卡面板
+            document.getElementById('main-nav').classList.remove('hidden');
             document.getElementById('punch-view').classList.remove('hidden');
         }
     </script>
