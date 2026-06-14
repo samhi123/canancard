@@ -219,6 +219,7 @@
         const GAS_WEB_APP_URL = SYSTEM_ENV.GAS_WEB_APP_URL;
         const LIFF_ID = SYSTEM_ENV.LIFF_ID;
         let currentAdminLineUid = "";
+        let currentAdminBranch = "";   // 登入後記下管理員所別
         let hrProfilesData = [];
 
         function showAdminPasswordLogin() {
@@ -252,11 +253,10 @@
                         }
                         // 帳號密碼登入成功，lineUid 留空（後端 isAdmin 將不再強制檢查）
                         currentAdminLineUid = "PWD_LOGIN:" + empId;
+                        currentAdminBranch  = res.data.branch || "";
                         document.getElementById('admin-login-overlay').classList.add('hidden');
-                        document.getElementById('admin-role-tag').innerText = `${res.data.name}｜${res.data.branch || ''}｜Admin ${APP_VERSION}`;
-                        loadPendingForms();
-                        forcedFreshLoadHRProfiles();
-                        loadAttendanceReports();
+                        document.getElementById('admin-role-tag').innerText = `${res.data.name}｜${currentAdminBranch || '全所'}｜Admin ${APP_VERSION}`;
+                        forcedFreshLoadHRProfiles(true); // true = 載完後串接待審單 & 出勤報表
                     } else {
                         errEl.innerText = res.message || "工號或密碼錯誤";
                         errEl.classList.remove('hidden');
@@ -314,10 +314,9 @@
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === "success" && res.data.role === "Admin") {
-                        document.getElementById('admin-role-tag').innerText = `${res.data.name}｜${res.data.branch || ''}｜Admin ${APP_VERSION}`;
-                        loadPendingForms();
-                        forcedFreshLoadHRProfiles();
-                        loadAttendanceReports();
+                        currentAdminBranch = res.data.branch || "";
+                        document.getElementById('admin-role-tag').innerText = `${res.data.name}｜${currentAdminBranch || '全所'}｜Admin ${APP_VERSION}`;
+                        forcedFreshLoadHRProfiles(true); // true = 載完後串接待審單 & 出勤報表
                     } else {
                         document.body.innerHTML = `<div class="flex flex-col items-center justify-center min-h-screen gap-4">
                             <div class="text-6xl">🚫</div>
@@ -331,22 +330,27 @@
                 });
         }
 
-        function forcedFreshLoadHRProfiles() {
+        function forcedFreshLoadHRProfiles(chainLoad = false) {
             const tbody = document.getElementById('hr-table-body');
             tbody.innerHTML = `<tr><td colspan="6" class="text-center p-6 text-gray-400">更新資料中...</td></tr>`;
-            
+
             const url = `${GAS_WEB_APP_URL}?action=getHRProfiles&lineUid=${encodeURIComponent(currentAdminLineUid)}&t=${new Date().getTime()}`;
             fetch(url)
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === "success") {
-                        hrProfilesData = res.data; // 儲存至全域快取
-                        tbody.innerHTML = ""; // 💡 關鍵：清空舊畫面，避免重複渲染
-                        
-                        res.data.forEach(emp => {
+                        hrProfilesData = res.data; // 全域快取（供其他區塊查詢 branch）
+
+                        // 依所別過濾（無所別的管理員顯示全部）
+                        const visible = currentAdminBranch
+                            ? res.data.filter(e => e.branch === currentAdminBranch)
+                            : res.data;
+
+                        tbody.innerHTML = "";
+                        visible.forEach(emp => {
                             const statusColor = emp.status === "在職" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
-                            const roleColor = emp.role === "Admin" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-800";
-                            const safeEmpId = emp.empId.toString().trim();
+                            const roleColor   = emp.role === "Admin"  ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-800";
+                            const safeEmpId   = emp.empId.toString().trim();
 
                             tbody.innerHTML += `
                                 <tr class="hover:bg-gray-50/80 transition-colors">
@@ -369,6 +373,12 @@
                                 </tr>
                             `;
                         });
+
+                        // 初次登入時，等 hrProfilesData 建立後再載入其他區塊（確保 branch 過濾可查到資料）
+                        if (chainLoad) {
+                            loadPendingForms();
+                            loadAttendanceReports();
+                        }
                     }
                 });
         }
@@ -461,11 +471,20 @@
                 .then(res => res.json())
                 .then(res => {
                     tbody.innerHTML = "";
-                    if (res.status !== "success" || res.data.length === 0) {
+
+                    // 依所別過濾（查 hrProfilesData 的 branch 欄位）
+                    const pendingVisible = currentAdminBranch
+                        ? res.data.filter(f => {
+                            const emp = hrProfilesData.find(e => e.empId === f.empId);
+                            return emp && emp.branch === currentAdminBranch;
+                          })
+                        : res.data;
+
+                    if (res.status !== "success" || pendingVisible.length === 0) {
                         tbody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-gray-400">目前無待審核單據</td></tr>`;
                         return;
                     }
-                    res.data.forEach(form => {
+                    pendingVisible.forEach(form => {
                         const categoryBadge = form.category === "加班"
                             ? `<span class="bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded text-xs font-medium">加班</span>`
                             : `<span class="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-xs font-medium">請假</span>`;
@@ -510,8 +529,17 @@
             const url = `${GAS_WEB_APP_URL}?action=getAttendanceReports&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
             fetch(url).then(res => res.json()).then(res => {
                 if (res.status === "success") {
-                    tbody.innerHTML = ""; // 💡 清空舊畫面
-                    res.data.forEach(log => {
+                    tbody.innerHTML = "";
+
+                    // 依所別過濾（查 hrProfilesData 的 branch 欄位）
+                    const logsVisible = currentAdminBranch
+                        ? res.data.filter(log => {
+                            const emp = hrProfilesData.find(e => e.empId === log.empId);
+                            return emp && emp.branch === currentAdminBranch;
+                          })
+                        : res.data;
+
+                    logsVisible.forEach(log => {
                         tbody.innerHTML += `<tr class="border-b border-gray-50"><td class="p-3 font-mono">${log.empId}</td><td class="p-3">${log.name}</td><td class="p-3">${log.date}</td><td class="p-3 font-bold">${log.time}</td><td class="p-3">${log.type}</td><td class="p-3 text-gray-400">${log.memo||'-'}</td></tr>`;
                     });
                 }

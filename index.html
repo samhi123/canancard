@@ -447,16 +447,57 @@
             });
         }
 
+        // 設定欄位的錯誤/正常樣式
+        function setFieldError(id, hasError) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (hasError) {
+                el.classList.add('border-red-400', 'bg-red-50');
+                el.classList.remove('border-gray-200', 'bg-gray-50');
+            } else {
+                el.classList.remove('border-red-400', 'bg-red-50');
+                el.classList.add('border-gray-200', 'bg-gray-50');
+            }
+        }
+
         function submitApplication() {
             if (!GAS_WEB_APP_URL) { alert("❌ 連線失敗：尚未載入設定網址。"); return; }
-            const subType = document.getElementById('form-sub-type').value;
-            const startTime = document.getElementById('form-start-time').value;
-            const endTime = document.getElementById('form-end-time').value;
-            const totalHours = document.getElementById('form-hours').value;
-            const reason = document.getElementById('form-reason').value;
 
-            if (!startTime || !endTime || !totalHours || !reason) {
-                alert("請完整填寫表單上的日期、時數及事由！");
+            const startTime  = document.getElementById('form-start-time').value;
+            const endTime    = document.getElementById('form-end-time').value;
+            const totalHours = document.getElementById('form-hours').value;
+            const reason     = document.getElementById('form-reason').value.trim();
+            const subType    = document.getElementById('form-sub-type').value;
+
+            // 逐欄清除舊錯誤狀態
+            ['form-start-time', 'form-end-time', 'form-hours', 'form-reason'].forEach(id => setFieldError(id, false));
+
+            // 逐欄驗證，收集所有錯誤訊息
+            const errors = [];
+
+            if (!startTime) {
+                setFieldError('form-start-time', true);
+                errors.push('請填寫「開始日期時間」');
+            }
+            if (!endTime) {
+                setFieldError('form-end-time', true);
+                errors.push('請填寫「結束日期時間」');
+            }
+            if (startTime && endTime && endTime <= startTime) {
+                setFieldError('form-end-time', true);
+                errors.push('「結束日期時間」必須晚於開始時間');
+            }
+            if (!totalHours || Number(totalHours) <= 0) {
+                setFieldError('form-hours', true);
+                errors.push('請填寫「合計時數」且須大於 0');
+            }
+            if (!reason) {
+                setFieldError('form-reason', true);
+                errors.push('請填寫「事由 / 備註說明」');
+            }
+
+            if (errors.length > 0) {
+                alert('⚠️ 請修正以下欄位：\n\n• ' + errors.join('\n• '));
                 return;
             }
 
@@ -480,10 +521,11 @@
             })
             .then(() => {
                 alert(`📋 表單已順利上傳！\n申請人：${currentEmployee.name}\n等待主管核簽。`);
-                document.getElementById('form-start-time').value = "";
-                document.getElementById('form-end-time').value = "";
-                document.getElementById('form-hours').value = "";
-                document.getElementById('form-reason').value = "";
+                // 清空欄位並移除錯誤狀態
+                ['form-start-time', 'form-end-time', 'form-hours', 'form-reason'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) { el.value = ""; setFieldError(id, false); }
+                });
                 switchPage('history');
             })
             .catch(error => {
@@ -561,6 +603,13 @@
                             statusColor = 'bg-gray-100 text-gray-500';
                             statusLabel = f.status;
                         }
+                        // 從 formId 時間戳算出申請日期（民國，不含時間）
+                        const applyTs = parseInt(f.formId.replace(/^F/, ''));
+                        let applyDateStr = '';
+                        if (!isNaN(applyTs)) {
+                            const ad = new Date(applyTs);
+                            applyDateStr = `${ad.getFullYear() - 1911}年${ad.getMonth() + 1}月${ad.getDate()}日`;
+                        }
                         const catColor  = f.category === '請假' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700';
                         const canDelete = f.status === '待審核';
                         const deleteBtn = canDelete
@@ -575,6 +624,7 @@
                                 </div>
                                 <span class="text-xs font-bold px-2 py-0.5 rounded-full ${statusColor}">${statusLabel}</span>
                             </div>
+                            <div class="text-xs text-gray-400">申請日期：${applyDateStr}</div>
                             <div class="text-xs text-gray-600">
                                 📅 ${fmtDT(f.startTime)} → ${fmtDT(f.endTime)}　${f.totalHours}小時
                             </div>
