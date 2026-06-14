@@ -130,6 +130,33 @@
                     <i class="fa-solid fa-rotate mr-1"></i>重新整理
                 </button>
             </div>
+            <!-- 篩選列 -->
+            <div class="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-xl">
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">員工</label>
+                    <select id="report-filter-emp" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[120px]">
+                        <option value="">全部員工</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">日期從</label>
+                    <input type="date" id="report-filter-start" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">至</label>
+                    <input type="date" id="report-filter-end" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
+                </div>
+                <button onclick="applyReportFilter()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
+                    <i class="fa-solid fa-magnifying-glass mr-1"></i>篩選
+                </button>
+                <button onclick="resetReportFilter()" class="border border-gray-200 hover:bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
+                    清除
+                </button>
+                <button onclick="exportReportCSV()" class="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
+                    <i class="fa-solid fa-file-csv mr-1"></i>匯出 CSV
+                </button>
+            </div>
+            <p id="report-count" class="text-xs text-gray-400 mb-2"></p>
             <div class="table-container">
                 <table class="w-full text-left border-collapse">
                     <thead>
@@ -574,44 +601,130 @@
             .catch(err => alert("連線錯誤：" + err));
         }
 
+        let allAttendanceLogs = []; // 全域快取，供篩選與匯出使用
+
         function loadAttendanceReports() {
             const tbody = document.getElementById('report-table-body');
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
             const url = `${GAS_WEB_APP_URL}?action=getAttendanceReports&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
             fetch(url).then(res => res.json()).then(res => {
                 if (res.status === "success") {
-                    tbody.innerHTML = "";
-
-                    // 依所別過濾（查 hrProfilesData 的 branch 欄位）
-                    const logsVisible = currentAdminBranch
+                    // 依所別過濾後存入全域快取
+                    allAttendanceLogs = currentAdminBranch
                         ? res.data.filter(log => {
                             const emp = hrProfilesData.find(e => e.empId === log.empId);
                             return emp && emp.branch === currentAdminBranch;
                           })
                         : res.data;
 
-                    logsVisible.forEach(log => {
-                        // 日期：「2026/06/14」→「115年6月14日」（民國年）
-                        const dp = (log.date || '').split('/');
-                        let dateStr = log.date;
-                        if (dp.length === 3) {
-                            const rocYear = parseInt(dp[0]) - 1911;
-                            dateStr = `${rocYear}年${parseInt(dp[1])}月${parseInt(dp[2])}日`;
-                        }
-                        // 時間：「09:30:15」→「上午9：30」；「13:30:00」→「下午1：30」
-                        const tp = (log.time || '').split(':');
-                        let timeStr = log.time;
-                        if (tp.length >= 2) {
-                            let h = parseInt(tp[0]);
-                            const m = tp[1].padStart(2, '0');
-                            const ampm = h < 12 ? '上午' : '下午';
-                            if (h === 0) h = 12;
-                            else if (h > 12) h -= 12;
-                            timeStr = `${ampm}${h}：${m}`;
-                        }
-                        tbody.innerHTML += `<tr class="border-b border-gray-50"><td class="p-3 font-mono text-xs">${log.empId}</td><td class="p-3">${log.name}</td><td class="p-3">${dateStr}</td><td class="p-3 font-bold">${timeStr}</td><td class="p-3">${log.type}</td><td class="p-3 text-gray-400 text-xs">${log.memo||'-'}</td></tr>`;
+                    // 更新員工下拉選單
+                    const empSelect = document.getElementById('report-filter-emp');
+                    const prevEmp = empSelect.value;
+                    const empMap = {};
+                    allAttendanceLogs.forEach(log => { empMap[log.empId] = log.name; });
+                    empSelect.innerHTML = '<option value="">全部員工</option>';
+                    Object.entries(empMap).forEach(([id, name]) => {
+                        empSelect.innerHTML += `<option value="${id}">${name}（${id}）</option>`;
                     });
+                    empSelect.value = prevEmp;
+
+                    renderReportTable(allAttendanceLogs);
                 }
             });
+        }
+
+        function formatDateROC(dateStr) {
+            const dp = (dateStr || '').split('/');
+            if (dp.length === 3) {
+                const rocYear = parseInt(dp[0]) - 1911;
+                return `${rocYear}年${parseInt(dp[1])}月${parseInt(dp[2])}日`;
+            }
+            return dateStr;
+        }
+
+        function formatTimeAMPM(timeStr) {
+            const tp = (timeStr || '').split(':');
+            if (tp.length >= 2) {
+                let h = parseInt(tp[0]);
+                const m = tp[1].padStart(2, '0');
+                const ampm = h < 12 ? '上午' : '下午';
+                if (h === 0) h = 12;
+                else if (h > 12) h -= 12;
+                return `${ampm}${h}：${m}`;
+            }
+            return timeStr;
+        }
+
+        function renderReportTable(logs) {
+            const tbody = document.getElementById('report-table-body');
+            const countEl = document.getElementById('report-count');
+            tbody.innerHTML = "";
+            if (!logs || logs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">無符合條件的打卡紀錄</td></tr>`;
+                countEl.innerText = "";
+                return;
+            }
+            countEl.innerText = `共 ${logs.length} 筆`;
+            logs.forEach(log => {
+                tbody.innerHTML += `<tr class="border-b border-gray-50">
+                    <td class="p-3 font-mono text-xs">${log.empId}</td>
+                    <td class="p-3">${log.name}</td>
+                    <td class="p-3">${formatDateROC(log.date)}</td>
+                    <td class="p-3 font-bold">${formatTimeAMPM(log.time)}</td>
+                    <td class="p-3">${log.type}</td>
+                    <td class="p-3 text-gray-400 text-xs">${log.memo || '-'}</td>
+                </tr>`;
+            });
+        }
+
+        function applyReportFilter() {
+            const empId     = document.getElementById('report-filter-emp').value;
+            const startVal  = document.getElementById('report-filter-start').value;  // yyyy-MM-dd
+            const endVal    = document.getElementById('report-filter-end').value;
+
+            const filtered = allAttendanceLogs.filter(log => {
+                // 員工篩選
+                if (empId && log.empId !== empId) return false;
+                // 日期篩選：log.date 格式為 "yyyy/MM/dd"
+                if (startVal || endVal) {
+                    const logDate = (log.date || '').replace(/\//g, '-'); // 轉成 yyyy-MM-dd 比對
+                    if (startVal && logDate < startVal) return false;
+                    if (endVal   && logDate > endVal)   return false;
+                }
+                return true;
+            });
+            renderReportTable(filtered);
+        }
+
+        function resetReportFilter() {
+            document.getElementById('report-filter-emp').value   = '';
+            document.getElementById('report-filter-start').value = '';
+            document.getElementById('report-filter-end').value   = '';
+            renderReportTable(allAttendanceLogs);
+        }
+
+        function exportReportCSV() {
+            // 取目前已顯示的行（與篩選後一致）
+            const rows = document.querySelectorAll('#report-table-body tr');
+            if (!rows.length || rows[0].cells.length < 2) { alert('目前沒有可匯出的資料'); return; }
+
+            const headers = ['員工編號', '姓名', '打卡日期', '打卡時間', '打卡類型', '打卡備註說明'];
+            let csv = '﻿' + headers.join(',') + '\n'; // BOM for Excel 正確顯示中文
+            rows.forEach(row => {
+                const cells = Array.from(row.cells).map(td => {
+                    const text = td.innerText.trim().replace(/"/g, '""');
+                    return `"${text}"`;
+                });
+                csv += cells.join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            const now  = new Date();
+            const fname = `出勤紀錄_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.csv`;
+            a.href = url; a.download = fname; a.click();
+            URL.revokeObjectURL(url);
         }
 
         function checkEmpIdDuplicate() {
