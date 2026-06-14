@@ -145,7 +145,8 @@
         </div>
     </div>
 
-<nav class="bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0 h-16 flex items-center justify-around px-2 shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.03)] z-50">
+<div class="fixed bottom-16 right-2 z-40 text-[10px] text-gray-300 select-none" id="appVersion"></div>
+    <nav class="bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0 h-16 flex items-center justify-around px-2 shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.03)] z-50">
         <button onclick="switchPage('clock')" id="nav-clock" class="flex flex-col items-center justify-center w-20 text-indigo-600 transition-colors">
             <i class="fa-solid fa-clock-rotate-left text-xl"></i>
             <span class="text-[11px] font-bold mt-1">打卡首頁</span>
@@ -163,6 +164,9 @@
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
     <script>
+        // --- 0. 版本號（每次更新請修改此處）---
+        const APP_VERSION = "v1.0.6";
+
         // --- 1. 全域變數宣告 ---
         // 直接從已載入的 env.js (SYSTEM_ENV) 讀取設定，不再 fetch env.txt
         let GAS_WEB_APP_URL = (typeof SYSTEM_ENV !== "undefined") ? SYSTEM_ENV.GAS_WEB_APP_URL : "";
@@ -181,6 +185,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             updateClock();
             setInterval(updateClock, 1000);
+            document.getElementById('appVersion').innerText = APP_VERSION;
 
             if (!GAS_WEB_APP_URL) {
                 console.error("env.js 未載入或 GAS_WEB_APP_URL 為空");
