@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>行動人事出勤系統</title>
+    <script src="env.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
 </head>
@@ -155,40 +156,31 @@
 
     <script>
         // --- 1. 全域變數宣告 ---
-        let GAS_WEB_APP_URL = "";
+        // 直接從已載入的 env.js (SYSTEM_ENV) 讀取設定，不再 fetch env.txt
+        let GAS_WEB_APP_URL = (typeof SYSTEM_ENV !== "undefined") ? SYSTEM_ENV.GAS_WEB_APP_URL : "";
         let currentFormType = 'leave';
-        
+
         // 預設員工資訊（當 LINE LIFF 順利初始化後，會自動被真實 LINE 個資覆蓋）
-        const currentEmployee = { 
-            empId: "E001", 
-            name: "未登入員工" 
+        const currentEmployee = {
+            empId: "E001",
+            name: "未登入員工"
         };
 
-        // ⚠️【請填入你的 LIFF ID】
-        const MY_LIFF_ID = "貼上你的_LIFF_ID_在這邊"; 
+        // LIFF ID 從 env.js 讀取
+        const MY_LIFF_ID = (typeof SYSTEM_ENV !== "undefined") ? SYSTEM_ENV.LIFF_ID : "";
 
-        // --- 2. 網頁事件監聽（載入環境變數與啟動時鐘） ---
+        // --- 2. 網頁事件監聽（啟動時鐘並初始化 LIFF） ---
         window.addEventListener('DOMContentLoaded', () => {
             updateClock();
             setInterval(updateClock, 1000);
 
-            // 步驟 A：讀取設定檔 env.txt
-            fetch('env.txt')
-                .then(response => {
-                    if (!response.ok) throw new Error('檔案讀取失敗');
-                    return response.text();
-                })
-                .then(url => {
-                    GAS_WEB_APP_URL = url.trim();
-                    console.log("員工端 GAS 網址加載成功:", GAS_WEB_APP_URL);
-                    
-                    // 步驟 B：設定檔加載成功後，再啟動 LINE LIFF 登入機制
-                    initializeLiff();
-                })
-                .catch(error => {
-                    console.error("環境變數載入失敗:", error);
-                    alert("⚠️ 系統警報：無法載入 env.txt 設定檔。");
-                });
+            if (!GAS_WEB_APP_URL) {
+                console.error("env.js 未載入或 GAS_WEB_APP_URL 為空");
+                alert("⚠️ 系統警報：無法讀取 env.js 設定，請確認檔案已正確放置。");
+                return;
+            }
+            console.log("員工端 GAS 網址加載成功:", GAS_WEB_APP_URL);
+            initializeLiff();
         });
 
         // --- 3. LINE LIFF 初始化與個資抓取功能 ---
