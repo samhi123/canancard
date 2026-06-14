@@ -362,17 +362,40 @@
         }
 
         function loadMyForms() {
-            if (!GAS_WEB_APP_URL || !currentEmployee.empId) return;
             const container = document.getElementById('history-list');
+            if (!GAS_WEB_APP_URL) {
+                container.innerHTML = '<div class="text-center text-red-400 text-sm py-4">❌ GAS 網址未載入</div>';
+                return;
+            }
             container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8">載入中...</div>';
 
-            fetch(`${GAS_WEB_APP_URL}?action=getMyForms&empId=${encodeURIComponent(currentEmployee.empId)}`)
+            const empId = currentEmployee.empId || "";
+            fetch(`${GAS_WEB_APP_URL}?action=getMyForms&empId=${encodeURIComponent(empId)}`)
                 .then(r => r.json())
                 .then(res => {
-                    if (res.status !== 'success' || res.data.length === 0) {
-                        container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8">目前尚無申請紀錄</div>';
+                    // 顯示診斷資訊（確認後可移除）
+                    console.log("getMyForms 回應:", JSON.stringify(res));
+                    console.log("查詢工號:", empId);
+
+                    if (res.status !== 'success') {
+                        container.innerHTML = `<div class="text-center text-red-400 text-sm py-4">❌ GAS 回傳錯誤：${res.message || '未知'}<br><small class="text-gray-400">查詢工號：${empId}</small></div>`;
                         return;
                     }
+                    if (res.data.length === 0) {
+                        container.innerHTML = `<div class="text-center text-gray-400 text-sm py-4">目前尚無申請紀錄<br><small>查詢工號：${empId}</small></div>`;
+                        return;
+                    }
+                    // 日期簡化：「2026-06-14 09:00」→「6/14 09:00」
+                    function fmtDT(str) {
+                        if (!str) return '';
+                        const parts = str.trim().split(' ');
+                        const dateParts = parts[0].split('-');
+                        const date = dateParts.length === 3
+                            ? `${parseInt(dateParts[1])}/${parseInt(dateParts[2])}`
+                            : parts[0];
+                        return parts[1] ? `${date} ${parts[1].slice(0,5)}` : date;
+                    }
+
                     container.innerHTML = res.data.map(f => {
                         const statusColor = f.status === '待審核' ? 'bg-amber-100 text-amber-700'
                                           : f.status === '核准'   ? 'bg-emerald-100 text-emerald-700'
@@ -380,6 +403,10 @@
                         const statusIcon  = f.status === '待審核' ? '⏳'
                                           : f.status === '核准'   ? '✅' : '❌';
                         const catColor    = f.category === '請假' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700';
+                        const canDelete   = f.status === '待審核';
+                        const deleteBtn   = canDelete
+                            ? `<button onclick="deleteForm('${f.formId}','${f.category}')" class="text-red-400 hover:text-red-600 text-xs px-2 py-0.5 rounded border border-red-200 hover:border-red-400 transition">🗑 撤回</button>`
+                            : '';
                         return `
                         <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-2">
                             <div class="flex justify-between items-center">
@@ -390,13 +417,11 @@
                                 <span class="text-xs font-bold px-2 py-0.5 rounded-full ${statusColor}">${statusIcon} ${f.status}</span>
                             </div>
                             <div class="text-xs text-gray-600">
-                                <span>📅 ${f.startTime}</span>
-                                <span class="mx-1">→</span>
-                                <span>${f.endTime}</span>
+                                📅 ${fmtDT(f.startTime)} → ${fmtDT(f.endTime)}　${f.totalHours}小時
                             </div>
-                            <div class="flex justify-between text-xs text-gray-500">
-                                <span>合計 ${f.totalHours} 小時</span>
+                            <div class="flex justify-between items-center text-xs text-gray-400">
                                 <span>${f.reason}</span>
+                                ${deleteBtn}
                             </div>
                         </div>`;
                     }).join('');
@@ -404,6 +429,26 @@
                 .catch(() => {
                     container.innerHTML = '<div class="text-center text-red-400 text-sm py-8">載入失敗，請稍後再試</div>';
                 });
+        }
+
+        function deleteForm(formId, category) {
+            if (!confirm(`確定要撤回這筆「${category}」申請嗎？`)) return;
+            const payload = {
+                action: "deleteForm",
+                formId: formId,
+                category: category
+            };
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(payload)
+            }).then(() => {
+                alert("✅ 申請已撤回");
+                loadMyForms(); // 重新整理清單
+            }).catch(() => {
+                alert("撤回失敗，請稍後再試");
+            });
         }
 
         function handleLogout() {
