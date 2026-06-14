@@ -18,6 +18,7 @@
             <div>
                 <div class="flex items-center space-x-1">
                     <span class="font-bold text-gray-800 text-base" id="userName">載入中...</span>
+                    <span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full font-medium" id="userBranch"></span>
                     <span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-medium" id="userRole">載入中</span>
                 </div>
                 <p class="text-xs text-gray-500" id="userEmpId">權限：確認中</p>
@@ -263,11 +264,19 @@
 
         // 套用員工資料到全域變數與畫面
         function applyEmployeeData(data) {
-            currentEmployee.empId = data.empId;
-            currentEmployee.name  = data.name;
-            document.getElementById('userName').innerText  = data.name;
-            document.getElementById('userRole').innerText  = data.role || '員工';
-            document.getElementById('userEmpId').innerText = `權限：${data.role || '一般'}`;
+            currentEmployee.empId   = data.empId;
+            currentEmployee.name    = data.name;
+            currentEmployee.branch  = data.branch || "";
+            document.getElementById('userName').innerText   = data.name;
+            document.getElementById('userRole').innerText   = data.role   || '員工';
+            document.getElementById('userEmpId').innerText  = `權限：${data.role || '一般'}`;
+            const branchEl = document.getElementById('userBranch');
+            if (data.branch) {
+                branchEl.innerText = data.branch;
+                branchEl.style.display = '';
+            } else {
+                branchEl.style.display = 'none';
+            }
             loadTodayAttendance(); // 登入後立即讀取今日打卡狀態
         }
 
