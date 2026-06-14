@@ -590,11 +590,25 @@
                         : res.data;
 
                     logsVisible.forEach(log => {
-                        // 日期：「2026/06/14」→「6/14」；時間：「09:30:15」→「09:30」
+                        // 日期：「2026/06/14」→「115年6月14日」（民國年）
                         const dp = (log.date || '').split('/');
-                        const dateShort = dp.length === 3 ? `${parseInt(dp[1])}/${parseInt(dp[2])}` : log.date;
-                        const timeShort = (log.time || '').slice(0, 5);
-                        tbody.innerHTML += `<tr class="border-b border-gray-50"><td class="p-3 font-mono text-xs">${log.empId}</td><td class="p-3">${log.name}</td><td class="p-3">${dateShort}</td><td class="p-3 font-bold">${timeShort}</td><td class="p-3">${log.type}</td><td class="p-3 text-gray-400 text-xs">${log.memo||'-'}</td></tr>`;
+                        let dateStr = log.date;
+                        if (dp.length === 3) {
+                            const rocYear = parseInt(dp[0]) - 1911;
+                            dateStr = `${rocYear}年${parseInt(dp[1])}月${parseInt(dp[2])}日`;
+                        }
+                        // 時間：「09:30:15」→「上午9：30」；「13:30:00」→「下午1：30」
+                        const tp = (log.time || '').split(':');
+                        let timeStr = log.time;
+                        if (tp.length >= 2) {
+                            let h = parseInt(tp[0]);
+                            const m = tp[1].padStart(2, '0');
+                            const ampm = h < 12 ? '上午' : '下午';
+                            if (h === 0) h = 12;
+                            else if (h > 12) h -= 12;
+                            timeStr = `${ampm}${h}：${m}`;
+                        }
+                        tbody.innerHTML += `<tr class="border-b border-gray-50"><td class="p-3 font-mono text-xs">${log.empId}</td><td class="p-3">${log.name}</td><td class="p-3">${dateStr}</td><td class="p-3 font-bold">${timeStr}</td><td class="p-3">${log.type}</td><td class="p-3 text-gray-400 text-xs">${log.memo||'-'}</td></tr>`;
                     });
                 }
             });
