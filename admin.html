@@ -149,46 +149,69 @@
     </div>
 
     <div id="hr-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
             <h3 id="modal-title" class="text-lg font-bold text-gray-800 mb-4">編輯員工資料</h3>
             <form id="hr-form" onsubmit="submitHRForm(event)" class="space-y-3 text-sm">
                 <div>
-                    <label class="block text-gray-600 mb-1 font-medium">員工編號 (不可重複，可輸入 0 開頭)</label>
-                    <input type="text" id="form-empId" required class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                    <label class="block text-gray-600 mb-1 font-medium">員工編號 <span class="text-red-400">*</span> (不可重複)</label>
+                    <input type="text" id="form-empId" required oninput="checkEmpIdDuplicate()"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                    <p id="empId-check-msg" class="text-xs mt-1 hidden"></p>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-gray-600 mb-1 font-medium">姓名</label>
+                        <label class="block text-gray-600 mb-1 font-medium">姓名 <span class="text-red-400">*</span></label>
                         <input type="text" id="form-name" required class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
-                        <label class="block text-gray-600 mb-1 font-medium">部門</label>
+                        <label class="block text-gray-600 mb-1 font-medium">部門 <span class="text-red-400">*</span></label>
                         <input type="text" id="form-dept" required class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-gray-600 mb-1 font-medium">職稱</label>
+                        <label class="block text-gray-600 mb-1 font-medium">職稱 <span class="text-red-400">*</span></label>
                         <input type="text" id="form-title" required class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
-                        <label class="block text-gray-600 mb-1 font-medium">到職日期</label>
+                        <label class="block text-gray-600 mb-1 font-medium">到職日期 <span class="text-red-400">*</span></label>
                         <input type="date" id="form-arrivalDate" required class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-gray-600 mb-1 font-medium">聯絡電話 (選填)</label>
+                        <label class="block text-gray-600 mb-1 font-medium">聯絡電話</label>
                         <input type="text" id="form-phone" placeholder="若無請留空" class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
-                        <label class="block text-gray-600 mb-1 font-medium">所別 (選填)</label>
+                        <label class="block text-gray-600 mb-1 font-medium">所別</label>
                         <input type="text" id="form-branch" placeholder="例：台北所" class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
                     </div>
                 </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-gray-600 mb-1 font-medium">基本薪資 <span class="text-red-400">*</span></label>
+                        <input type="number" id="form-salary" min="0" step="1" placeholder="例：30000" required
+                            class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-gray-600 mb-1 font-medium">員工生日 <span class="text-red-400">*</span></label>
+                        <input type="date" id="form-birthday" required class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
                 <div>
-                    <label class="block text-gray-600 mb-1 font-medium">LINE User ID (可輸入 0 開頭)</label>
-                    <input type="text" id="form-lineUid" required class="w-full border border-gray-200 rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-indigo-500">
+                    <label class="block text-gray-600 mb-1 font-medium">Email <span class="text-red-400">*</span></label>
+                    <input type="email" id="form-email" required placeholder="example@company.com"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-gray-600 mb-1 font-medium">LINE User ID</label>
+                    <input type="text" id="form-lineUid" class="w-full border border-gray-200 rounded-xl px-3 py-2 font-mono focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-gray-600 mb-1 font-medium">員工密碼 <span class="text-red-400">*</span> <span id="pwd-hint" class="text-gray-400 font-normal text-xs"></span></label>
+                    <input type="text" id="form-password" placeholder="請設定員工登入密碼"
+                        class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -397,22 +420,34 @@
                 const emp = hrProfilesData.find(e => e.empId.toString().replace(/^'/, "").trim() === targetId);
                 
                 if (emp) {
-                    document.getElementById('form-empId').value = emp.empId;
-                    document.getElementById('form-name').value = emp.name;
-                    document.getElementById('form-dept').value = emp.dept;
-                    document.getElementById('form-title').value = emp.title;
+                    document.getElementById('form-empId').value       = emp.empId;
+                    document.getElementById('form-name').value        = emp.name;
+                    document.getElementById('form-dept').value        = emp.dept;
+                    document.getElementById('form-title').value       = emp.title;
                     document.getElementById('form-arrivalDate').value = emp.arrivalDate;
-                    document.getElementById('form-phone').value = emp.phone === "無" ? "" : emp.phone;
-                    document.getElementById('form-branch').value = emp.branch || "";
-                    document.getElementById('form-lineUid').value = emp.lineUid;
-                    document.getElementById('form-status').value = emp.status;
-                    document.getElementById('form-role').value = emp.role;
+                    document.getElementById('form-phone').value       = emp.phone === "無" ? "" : emp.phone;
+                    document.getElementById('form-branch').value      = emp.branch   || "";
+                    document.getElementById('form-salary').value      = emp.salary   || "";
+                    document.getElementById('form-birthday').value    = emp.birthday || "";
+                    document.getElementById('form-email').value       = emp.email    || "";
+                    document.getElementById('form-lineUid').value     = emp.lineUid;
+                    document.getElementById('form-password').value    = emp.password || "";
+                    document.getElementById('form-status').value      = emp.status;
+                    document.getElementById('form-role').value        = emp.role;
+                    // 編輯模式：密碼欄可留空表示不修改
+                    document.getElementById('pwd-hint').innerText     = "（留空表示不修改）";
+                    document.getElementById('form-password').removeAttribute('required');
                 }
             } else {
                 document.getElementById('modal-title').innerText = "➕ 新增全新員工檔案";
                 document.getElementById('form-empId').readOnly = false;
-                document.getElementById('form-empId').className = "w-full border border-gray-200 rounded-xl px-3 py-2 font-mono focus:border-indigo-500";
+                document.getElementById('form-empId').className = "w-full border border-gray-200 rounded-xl px-3 py-2 focus:border-indigo-500";
                 document.getElementById('form-arrivalDate').value = new Date().toISOString().split('T')[0];
+                document.getElementById('pwd-hint').innerText = "";
+                document.getElementById('form-password').setAttribute('required', '');
+                // 清除工號重複提示
+                const msg = document.getElementById('empId-check-msg');
+                msg.innerText = ""; msg.classList.add('hidden');
             }
             modal.classList.remove('hidden');
         }
@@ -420,15 +455,30 @@
         function submitHRForm(event) {
             event.preventDefault();
             
+            const empId = document.getElementById('form-empId').value.trim();
+            // 新增模式：阻擋重複工號
+            if (!document.getElementById('form-empId').readOnly) {
+                const duplicate = hrProfilesData.find(e => e.empId.replace(/^'/, '').trim() === empId);
+                if (duplicate) {
+                    alert(`⚠️ 工號「${empId}」已被「${duplicate.name}」使用，請重新輸入。`);
+                    document.getElementById('form-empId').focus();
+                    return;
+                }
+            }
+
             const empData = {
-                empId:       document.getElementById('form-empId').value.trim(),
+                empId:       empId,
                 name:        document.getElementById('form-name').value.trim(),
                 dept:        document.getElementById('form-dept').value.trim(),
                 title:       document.getElementById('form-title').value.trim(),
                 arrivalDate: document.getElementById('form-arrivalDate').value,
                 phone:       document.getElementById('form-phone').value.trim() || "無",
                 branch:      document.getElementById('form-branch').value.trim(),
+                salary:      document.getElementById('form-salary').value.trim(),
+                birthday:    document.getElementById('form-birthday').value,
+                email:       document.getElementById('form-email').value.trim(),
                 lineUid:     document.getElementById('form-lineUid').value.trim(),
+                password:    document.getElementById('form-password').value.trim(),
                 status:      document.getElementById('form-status').value,
                 role:        document.getElementById('form-role').value
             };
@@ -540,10 +590,32 @@
                         : res.data;
 
                     logsVisible.forEach(log => {
-                        tbody.innerHTML += `<tr class="border-b border-gray-50"><td class="p-3 font-mono">${log.empId}</td><td class="p-3">${log.name}</td><td class="p-3">${log.date}</td><td class="p-3 font-bold">${log.time}</td><td class="p-3">${log.type}</td><td class="p-3 text-gray-400">${log.memo||'-'}</td></tr>`;
+                        // 日期：「2026/06/14」→「6/14」；時間：「09:30:15」→「09:30」
+                        const dp = (log.date || '').split('/');
+                        const dateShort = dp.length === 3 ? `${parseInt(dp[1])}/${parseInt(dp[2])}` : log.date;
+                        const timeShort = (log.time || '').slice(0, 5);
+                        tbody.innerHTML += `<tr class="border-b border-gray-50"><td class="p-3 font-mono text-xs">${log.empId}</td><td class="p-3">${log.name}</td><td class="p-3">${dateShort}</td><td class="p-3 font-bold">${timeShort}</td><td class="p-3">${log.type}</td><td class="p-3 text-gray-400 text-xs">${log.memo||'-'}</td></tr>`;
                     });
                 }
             });
+        }
+
+        function checkEmpIdDuplicate() {
+            // 編輯模式（readOnly）不需要檢查
+            if (document.getElementById('form-empId').readOnly) return;
+            const empId  = document.getElementById('form-empId').value.trim();
+            const msgEl  = document.getElementById('empId-check-msg');
+            if (!empId) { msgEl.classList.add('hidden'); return; }
+            const exists = hrProfilesData.find(e => e.empId.replace(/^'/, '').trim() === empId);
+            if (exists) {
+                msgEl.innerText   = `⚠️ 工號「${empId}」已被「${exists.name}」使用`;
+                msgEl.className   = 'text-xs mt-1 text-red-500';
+                msgEl.classList.remove('hidden');
+            } else {
+                msgEl.innerText   = `✓ 工號可使用`;
+                msgEl.className   = 'text-xs mt-1 text-emerald-600';
+                msgEl.classList.remove('hidden');
+            }
         }
 
         function closeHRModal() { document.getElementById('hr-modal').classList.add('hidden'); }
