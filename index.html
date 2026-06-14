@@ -123,15 +123,12 @@
         </section>
 
         <section id="page-history" class="hidden space-y-3">
-            <h2 class="text-lg font-bold text-gray-800 px-1">🔍 申請進度追蹤</h2>
-            
-            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-2">
-                <div class="flex justify-between items-center">
-                    <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">⏳ 審核中</span>
-                    <span class="text-xs text-gray-400">系統即時連動</span>
-                </div>
-                <div class="text-sm font-bold text-gray-800">請假/加班 雲端申請表單</div>
-                <div class="text-xs text-gray-500">送出表單後，主管可同步在後台進行簽核。</div>
+            <div class="flex items-center justify-between px-1">
+                <h2 class="text-lg font-bold text-gray-800">🔍 申請進度追蹤</h2>
+                <button onclick="loadMyForms()" class="text-xs text-indigo-600 font-medium">重新整理</button>
+            </div>
+            <div id="history-list" class="space-y-3">
+                <div class="text-center text-gray-400 text-sm py-8">載入中...</div>
             </div>
         </section>
 
@@ -187,16 +184,30 @@
         function initializeLiff() {
             if (MY_LIFF_ID === "貼上你的_LIFF_ID_在這邊" || MY_LIFF_ID === "") {
                 console.warn("提示：尚未填入真實的 LIFF ID，目前維持本地端測試模式。");
-                document.getElementById('userName').innerText = "測試張小明 (在地端)";
-                currentEmployee.name = "測試張小明";
+                document.getElementById('userName').innerText = "測試員工 (測試模式)";
+                currentEmployee.name = "測試員工";
+                return;
+            }
+
+            // 若不在 LINE App 內（例如電腦瀏覽器），跳過 LIFF 登入，進入本地測試模式
+            if (typeof liff === "undefined") {
+                console.warn("LIFF SDK 未載入，進入本地測試模式。");
+                document.getElementById('userName').innerText = "測試員工 (本地模式)";
+                currentEmployee.name = "測試員工";
                 return;
             }
 
             liff.init({ liffId: MY_LIFF_ID })
                 .then(() => {
-                    // 判斷使用者是否已在 LINE 環境中登入
+                    // 若不在 LINE App 內（電腦瀏覽器），跳過強制登入，用測試模式
+                    if (!liff.isInClient() && !liff.isLoggedIn()) {
+                        console.warn("非 LINE App 環境，進入測試模式（不強制 LINE 登入）");
+                        document.getElementById('userName').innerText = "測試員工 (瀏覽器模式)";
+                        currentEmployee.name = "測試員工";
+                        return;
+                    }
                     if (!liff.isLoggedIn()) {
-                        liff.login(); // 引導至 LINE 帳密登入頁面
+                        liff.login(); // 只在 LINE App 內才跳 LINE 登入
                     } else {
                         // 已登入，抓取 LINE 使用者個人檔案
                         liff.getProfile()
@@ -247,6 +258,8 @@
             const activeBtn = document.getElementById(`nav-${pageId}`);
             activeBtn.className = "flex flex-col items-center justify-center w-20 text-indigo-600";
             activeBtn.querySelector('span').className = "text-[11px] font-bold mt-1";
+
+            if (pageId === 'history') loadMyForms();
         }
 
         function toggleFormType(type) {
@@ -346,6 +359,51 @@
                 console.error("API 錯誤:", error);
                 alert("表單送出失敗。");
             });
+        }
+
+        function loadMyForms() {
+            if (!GAS_WEB_APP_URL || !currentEmployee.empId) return;
+            const container = document.getElementById('history-list');
+            container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8">載入中...</div>';
+
+            fetch(`${GAS_WEB_APP_URL}?action=getMyForms&empId=${encodeURIComponent(currentEmployee.empId)}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status !== 'success' || res.data.length === 0) {
+                        container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8">目前尚無申請紀錄</div>';
+                        return;
+                    }
+                    container.innerHTML = res.data.map(f => {
+                        const statusColor = f.status === '待審核' ? 'bg-amber-100 text-amber-700'
+                                          : f.status === '核准'   ? 'bg-emerald-100 text-emerald-700'
+                                          : 'bg-red-100 text-red-600';
+                        const statusIcon  = f.status === '待審核' ? '⏳'
+                                          : f.status === '核准'   ? '✅' : '❌';
+                        const catColor    = f.category === '請假' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700';
+                        return `
+                        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <div class="flex gap-2">
+                                    <span class="text-xs font-bold px-2 py-0.5 rounded-full ${catColor}">${f.category}</span>
+                                    <span class="text-xs text-gray-500 self-center">${f.subType}</span>
+                                </div>
+                                <span class="text-xs font-bold px-2 py-0.5 rounded-full ${statusColor}">${statusIcon} ${f.status}</span>
+                            </div>
+                            <div class="text-xs text-gray-600">
+                                <span>📅 ${f.startTime}</span>
+                                <span class="mx-1">→</span>
+                                <span>${f.endTime}</span>
+                            </div>
+                            <div class="flex justify-between text-xs text-gray-500">
+                                <span>合計 ${f.totalHours} 小時</span>
+                                <span>${f.reason}</span>
+                            </div>
+                        </div>`;
+                    }).join('');
+                })
+                .catch(() => {
+                    container.innerHTML = '<div class="text-center text-red-400 text-sm py-8">載入失敗，請稍後再試</div>';
+                });
         }
 
         function handleLogout() {
