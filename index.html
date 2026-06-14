@@ -18,9 +18,9 @@
             <div>
                 <div class="flex items-center space-x-1">
                     <span class="font-bold text-gray-800 text-base" id="userName">載入中...</span>
-                    <span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-medium" id="userRole">員工</span>
+                    <span class="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-medium" id="userRole">載入中</span>
                 </div>
-                <p class="text-xs text-gray-500" id="userEmpId">工號: E001 · 行動端打卡</p>
+                <p class="text-xs text-gray-500" id="userEmpId">權限：確認中</p>
             </div>
         </div>
         <button onclick="handleLogout()" class="text-gray-400 hover:text-red-500 text-sm font-medium transition">
@@ -259,7 +259,8 @@
             currentEmployee.empId = data.empId;
             currentEmployee.name  = data.name;
             document.getElementById('userName').innerText  = data.name;
-            document.getElementById('userEmpId').innerText = `工號：${data.empId} · ${data.role}`;
+            document.getElementById('userRole').innerText  = data.role || '員工';
+            document.getElementById('userEmpId').innerText = `權限：${data.role || '一般'}`;
         }
 
         // --- 4. 介面與功能函式定義 ---
