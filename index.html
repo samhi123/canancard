@@ -508,10 +508,6 @@
                         container.innerHTML = `<div class="text-center text-red-400 text-sm py-4">❌ 載入失敗：${res.message || '請稍後再試'}</div>`;
                         return;
                     }
-                    if (res.data.length === 0) {
-                        container.innerHTML = `<div class="text-center text-gray-400 text-sm py-4">目前尚無申請紀錄</div>`;
-                        return;
-                    }
                     // 日期格式：「2026-06-14 09:00」→「115年6月14日 上午9：00」
                     function fmtDT(str) {
                         if (!str) return '';
@@ -534,15 +530,40 @@
                         return `${roc}年${month}月${day}日${timeStr}`;
                     }
 
-                    container.innerHTML = res.data.map(f => {
-                        const statusColor = f.status === '待審核' ? 'bg-amber-100 text-amber-700'
-                                          : f.status === '核准'   ? 'bg-emerald-100 text-emerald-700'
-                                          : 'bg-red-100 text-red-600';
-                        const statusIcon  = f.status === '待審核' ? '⏳'
-                                          : f.status === '核准'   ? '✅' : '❌';
-                        const catColor    = f.category === '請假' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700';
-                        const canDelete   = f.status === '待審核';
-                        const deleteBtn   = canDelete
+                    // 只保留近一個月的記錄（formId = "F" + timestamp ms）
+                    const oneMonthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+                    const filtered = res.data.filter(f => {
+                        const ts = parseInt(f.formId.replace(/^F/, ''));
+                        return !isNaN(ts) && ts >= oneMonthAgo;
+                    });
+
+                    // 依申請時間降冪排列（最新在上）
+                    filtered.sort((a, b) => b.formId.localeCompare(a.formId));
+
+                    if (filtered.length === 0) {
+                        container.innerHTML = `<div class="text-center text-gray-400 text-sm py-4">近一個月內無申請紀錄</div>`;
+                        return;
+                    }
+
+                    container.innerHTML = filtered.map(f => {
+                        // 狀態顯示（GAS 寫入值為「已核准」/「已拒絕」/「待審核」）
+                        let statusColor, statusLabel;
+                        if (f.status === '待審核') {
+                            statusColor = 'bg-amber-100 text-amber-700';
+                            statusLabel = '⏳ 待審核';
+                        } else if (f.status === '已核准') {
+                            statusColor = 'bg-emerald-100 text-emerald-700';
+                            statusLabel = '已核准';
+                        } else if (f.status === '已拒絕') {
+                            statusColor = 'bg-gray-100 text-gray-500';
+                            statusLabel = '已拒絕';
+                        } else {
+                            statusColor = 'bg-gray-100 text-gray-500';
+                            statusLabel = f.status;
+                        }
+                        const catColor  = f.category === '請假' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700';
+                        const canDelete = f.status === '待審核';
+                        const deleteBtn = canDelete
                             ? `<button onclick="deleteForm('${f.formId}','${f.category}')" class="text-red-400 hover:text-red-600 text-xs px-2 py-0.5 rounded border border-red-200 hover:border-red-400 transition">🗑 撤回</button>`
                             : '';
                         return `
@@ -552,7 +573,7 @@
                                     <span class="text-xs font-bold px-2 py-0.5 rounded-full ${catColor}">${f.category}</span>
                                     <span class="text-xs text-gray-500 self-center">${f.subType}</span>
                                 </div>
-                                <span class="text-xs font-bold px-2 py-0.5 rounded-full ${statusColor}">${statusIcon} ${f.status}</span>
+                                <span class="text-xs font-bold px-2 py-0.5 rounded-full ${statusColor}">${statusLabel}</span>
                             </div>
                             <div class="text-xs text-gray-600">
                                 📅 ${fmtDT(f.startTime)} → ${fmtDT(f.endTime)}　${f.totalHours}小時
