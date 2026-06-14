@@ -4,193 +4,246 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>跨所差勤數據整合後台</title>
+    <!-- 引入美化套件與圖示 -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://static.liff.line.me/edge/2/sdk.js"></script>
+    <!-- 引入環境設定檔 -->
     <script src="env.js"></script>
     <style>
-        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f8fafc; }
+        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f1f5f9; }
     </style>
 </head>
-<body class="min-h-screen">
+<body class="min-h-screen flex flex-col justify-between">
 
-    <div id="loading-view" class="fixed inset-0 bg-slate-900/10 backdrop-blur-xs flex flex-col justify-center items-center z-50">
-        <i class="fa-solid fa-shield-halved animate-bounce text-4xl text-indigo-600 mb-3"></i>
-        <p class="text-sm font-semibold text-slate-700">正在執行管理員環境安全驗證...</p>
-    </div>
+    <!-- 頂部導覽列 -->
+    <nav class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center shadow-md">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-xl shadow-md">
+                <i class="fa-solid fa-chart-pie"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-base tracking-wide">迦南科技管理部</h1>
+                <p class="text-[10px] text-slate-400">跨所差勤數據整合中心 (最高管理員)</p>
+            </div>
+        </div>
+        <a href="index.html" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition-colors">
+            <i class="fa-solid fa-arrow-left mr-1"></i> 回打卡首頁
+        </a>
+    </nav>
 
-    <div id="login-view" class="hidden min-h-screen flex items-center justify-center px-4">
-        <div class="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
-            <div class="text-center mb-6">
-                <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl mx-auto mb-2 shadow-sm">
-                    <i class="fa-solid fa-lock"></i>
-                </div>
-                <h2 class="text-xl font-bold text-slate-800">後台管理安全驗證</h2>
-                <p class="text-xs text-slate-400 mt-1">系統偵測到非 LINE 環境，請輸入核心管理憑證</p>
+    <!-- ========================================== -->
+    <!-- 狀態一：管理員安全環境驗證中 -->
+    <!-- ========================================== -->
+    <div id="admin-auth-view" class="flex-1 flex flex-col justify-center items-center px-4 py-12">
+        <div class="bg-white p-8 rounded-2xl shadow-xl max-w-sm w-full text-center space-y-4 border border-slate-200">
+            <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-2xl mx-auto shadow-inner">
+                <i id="lock-icon" class="fa-solid fa-shield-halved animate-pulse"></i>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-slate-800">管理員權限驗證</h3>
+                <p class="text-xs text-slate-400 mt-1">請輸入最高管理員之工號與密碼</p>
             </div>
             
-            <form onsubmit="handleAdminLogin(event)" class="space-y-4">
+            <!-- 登入表單 -->
+            <form onsubmit="handleAdminLogin(event)" class="space-y-3 text-left">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">管理員編號 (工號)</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-id-card-clip absolute left-3 top-3 text-slate-400"></i>
-                        <input type="text" id="admin-empId" required placeholder="請輸入工號" class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:border-indigo-500">
-                    </div>
+                    <label class="block text-[11px] font-semibold text-slate-500 mb-1">管理員工號</label>
+                    <input type="text" id="admin-empId" required placeholder="例如: 001" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:border-indigo-500">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">管理密碼</label>
-                    <div class="relative">
-                        <i class="fa-solid fa-key absolute left-3 top-3 text-slate-400"></i>
-                        <input type="password" id="admin-password" required placeholder="請輸入後台核心密碼" class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
-                    </div>
+                    <label class="block text-[11px] font-semibold text-slate-500 mb-1">管理員密碼</label>
+                    <input type="password" id="admin-password" required placeholder="請輸入密碼" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-500">
                 </div>
-                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md shadow-indigo-100">
-                    驗證權限並登入
+                <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-2.5 rounded-xl font-semibold text-sm transition-all shadow-md">
+                    驗證並登入後台
                 </button>
             </form>
         </div>
     </div>
 
-    <div id="admin-dashboard" class="hidden">
-        <nav class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center shadow-md">
-            <div class="flex items-center space-x-3">
-                <span class="bg-indigo-600 text-[10px] px-2 py-0.5 rounded font-bold tracking-wider">多所整合</span>
-                <h1 class="font-bold text-base md:text-lg">雲端差勤數據整合後台</h1>
+    <!-- ========================================== -->
+    <!-- 狀態二：跨所資料主面板 (驗證通過後展示) -->
+    <!-- ========================================== -->
+    <main id="admin-dashboard" class="hidden flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
+        
+        <!-- 數據統計頂欄 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex items-center space-x-4">
+                <div class="p-3 bg-indigo-50 text-indigo-600 rounded-lg text-xl"><i class="fa-solid fa-users"></i></div>
+                <div>
+                    <p class="text-xs text-slate-400 font-medium">今日跨所總打卡</p>
+                    <p id="stat-total-count" class="text-xl font-bold text-slate-800 mt-0.5">0 筆</p>
+                </div>
             </div>
-            <div class="flex items-center space-x-4">
-                <span class="text-xs md:text-sm text-slate-300">
-                    目前管理員：<span id="current-admin-name" class="font-bold text-white">---</span> 
-                    【<span id="current-admin-office" class="text-indigo-400 font-medium">---</span>】
-                </span>
-                <button onclick="handleLogout()" class="text-xs text-slate-400 hover:text-red-400 font-medium transition-colors flex items-center space-x-1">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                    <span class="hidden md:inline">安全登出</span>
-                </button>
+            <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex items-center space-x-4">
+                <div class="p-3 bg-emerald-50 text-emerald-600 rounded-lg text-xl"><i class="fa-solid fa-circle-check"></i></div>
+                <div>
+                    <p class="text-xs text-slate-400 font-medium">今日上班報到</p>
+                    <p id="stat-on-count" class="text-xl font-bold text-slate-800 mt-0.5">0 人</p>
+                </div>
             </div>
-        </nav>
+            <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex items-center space-x-4">
+                <div class="p-3 bg-amber-50 text-amber-600 rounded-lg text-xl"><i class="fa-solid fa-business-time"></i></div>
+                <div>
+                    <p class="text-xs text-slate-400 font-medium">異常/備註提醒</p>
+                    <p id="stat-memo-count" class="text-xl font-bold text-slate-800 mt-0.5">0 筆</p>
+                </div>
+            </div>
+        </div>
 
-        <main class="max-w-6xl mx-auto px-4 py-8">
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-800">全所別員工打卡即時數據</h2>
-                        <p class="text-xs text-slate-400 mt-0.5">系統已自動啟用跨事務所多租戶資料庫串接</p>
-                    </div>
-                </div>
-                
-                <div class="border border-slate-100 rounded-xl bg-slate-50 p-8 text-center text-slate-400 text-sm">
-                    <i class="fa-solid fa-chart-pie text-3xl mb-2 text-indigo-500/80 block"></i>
-                    <span class="text-slate-700 font-semibold block mb-1">🎉 權限安全校驗成功！</span>
-                    管理員環境已開通。後台已具備「自動新增欄位」與「跨所別隔離」功能，功能運作完全正常。
-                </div>
+        <!-- 篩選控制列 -->
+        <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+            <h2 class="font-bold text-slate-800 text-sm flex items-center"><i class="fa-solid fa-list-check mr-2 text-indigo-500"></i> 全所別實時差勤明細</h2>
+            <div class="flex items-center space-x-2 w-full md:w-auto">
+                <label class="text-xs text-slate-400 whitespace-nowrap">篩選所別：</label>
+                <select id="office-filter" onchange="filterDataByOffice()" class="text-xs px-3 py-1.5 border border-slate-200 rounded-lg bg-slate-50 font-medium focus:outline-none">
+                    <option value="ALL">全部所別 (跨所聯查)</option>
+                </select>
             </div>
-        </main>
-    </div>
+        </div>
+
+        <!-- 明細表格卡片 -->
+        <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold tracking-wider">
+                            <th class="p-3.5">打卡時間</th>
+                            <th class="p-3.5">所別</th>
+                            <th class="p-3.5">工號</th>
+                            <th class="p-3.5">姓名</th>
+                            <th class="p-3.5">類型</th>
+                            <th class="p-3.5">打卡備註說明</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendance-tbody" class="divide-y divide-slate-100 text-slate-600 font-medium">
+                        <tr>
+                            <td colspan="6" class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner animate-spin mr-2"></i> 正在安全讀取全所數據中...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer class="text-center py-4 text-[10px] text-slate-400 tracking-wide">
+        © 2026 迦南科技管理部 · 總部大數據中心
+    </footer>
 
     <script>
-        const GAS_URL = SYSTEM_ENV.GAS_WEB_APP_URL;
+        let rawAttendanceData = [];
 
-        window.onload = function() {
-            // 網頁一打開，立刻執行與前台完全相同的 LINE 雙模安全安檢機制
-            initAdminSecurityCheck();
-        };
-
-        // 核心機制：後台專用 LINE 自動偵測與安全降級防護
-        function initAdminSecurityCheck() {
-            // 【安全防線 1】：如果根本連不上 LINE 伺服器，導致 liff 套件不存在，秒切換帳密登入
-            if (typeof liff === "undefined") {
-                console.warn("後台提示：LINE SDK 未載入，切換至密碼登入。");
-                switchToLoginView();
-                return;
-            }
-
-            // 【安全防線 2】：如果網頁不是在 LINE App 內部打開，不等待 LIFF，直接彈出密碼登入框
-            if (!navigator.userAgent.includes("Line") && !navigator.userAgent.includes("LIFF")) {
-                console.log("後台提示：偵測到為一般網頁瀏覽器，直接啟動密碼登入。");
-                switchToLoginView();
-                return;
-            }
-
-            // 【安全防線 3】：如果是 LINE 開啟，但環境設定沒有 LIFF ID，去密碼登入
-            if (!SYSTEM_ENV.LIFF_ID || SYSTEM_ENV.LIFF_ID.includes("XXXX")) {
-                switchToLoginView();
-                return;
-            }
-
-            // 只有上述 LINE 條件完全通過，才執行自動無感登入
-            try {
-                liff.init({ liffId: SYSTEM_ENV.LIFF_ID })
-                    .then(() => {
-                        if (liff.isInClient()) {
-                            liff.getProfile().then(profile => {
-                                // 丟給後端驗證這個 LINE UID 是否在試算表中，且是否為 Admin
-                                verifyAdminPrivilege(profile.userId, null, null, true);
-                            }).catch(() => switchToLoginView());
-                        } else {
-                            switchToLoginView();
-                        }
-                    })
-                    .catch(() => switchToLoginView());
-            } catch (e) {
-                switchToLoginView();
-            }
-        }
-
-        // 處理非 LINE 環境的手動帳密登入
+        // 處理管理員手動登入驗證
         function handleAdminLogin(event) {
             event.preventDefault();
             const empId = document.getElementById('admin-empId').value.trim();
             const password = document.getElementById('admin-password').value.trim();
-            
-            // 轉入讀取中畫面
-            document.getElementById('login-view').classList.add('hidden');
-            document.getElementById('loading-view').classList.remove('hidden');
 
-            verifyAdminPrivilege(null, empId, password, false);
-        }
+            const lockIcon = document.getElementById('lock-icon');
+            lockIcon.className = "fa-solid fa-spinner animate-spin";
 
-        // 統一安全權限交叉校驗
-        function verifyAdminPrivilege(uid, empId, password, isLine) {
-            let url = GAS_URL;
-            if (isLine) {
-                url += `?action=verifyLogin&lineUid=${encodeURIComponent(uid)}&_t=${new Date().getTime()}`;
-            } else {
-                url += `?action=verifyPasswordLogin&empId=${encodeURIComponent(empId)}&password=${encodeURIComponent(password)}&_t=${new Date().getTime()}`;
-            }
+            // 呼叫 GAS 進行最高管理員權限驗證 (地毯式防吃 0 匹配)
+            let url = `${SYSTEM_ENV.GAS_WEB_APP_URL}?action=verifyPasswordLogin&empId=${encodeURIComponent(empId)}&password=${encodeURIComponent(password)}`;
 
             fetch(url)
                 .then(res => res.json())
                 .then(res => {
-                    // 💡 關鍵三重安全卡關：必須成功、且該人員在試算表中的「權限」必須是 "Admin"
                     if (res.status === "success" && res.data.role === "Admin") {
-                        document.getElementById('loading-view').classList.add('hidden');
-                        document.getElementById('login-view').classList.add('hidden');
-                        
-                        // 動態填入經資料庫驗證成功的管理員名稱與他所隸屬的事務所所別
-                        document.getElementById('current-admin-name').innerText = res.data.name;
-                        document.getElementById('current-admin-office').innerText = res.data.office;
-                        
-                        // 打開主管理面板
+                        // 驗證成功，解鎖後台
+                        document.getElementById('admin-auth-view').classList.add('hidden');
                         document.getElementById('admin-dashboard').classList.remove('hidden');
+                        fetchGlobalAttendanceData();
                     } else {
+                        lockIcon.className = "fa-solid fa-shield-halved animate-pulse";
                         alert("⚠️ 安全阻斷：\n您不具備最高管理員(Admin)權限，或者輸入的核心憑證有誤，系統拒絕存取。");
-                        switchToLoginView();
                     }
                 })
                 .catch(() => {
-                    alert("連線後端錯誤，請確認 GAS 是否正確發布。");
-                    switchToLoginView();
+                    lockIcon.className = "fa-solid fa-shield-halved animate-pulse";
+                    alert("連線失敗，無法與雲端安全中心通訊。");
                 });
         }
 
-        function switchToLoginView() {
-            document.getElementById('loading-view').classList.add('hidden');
-            document.getElementById('admin-dashboard').classList.add('hidden');
-            document.getElementById('login-view').classList.remove('hidden');
+        // 抓取全公司所有所別的差勤數據
+        function fetchGlobalAttendanceData() {
+            let url = `${SYSTEM_ENV.GAS_WEB_APP_URL}?action=getAllAttendanceLogs`;
+            
+            fetch(url)
+                .then(res => res.json())
+                .then(res => {
+                    if(res.status === "success") {
+                        rawAttendanceData = res.data;
+                        buildOfficeFilterOptions(res.data);
+                        renderTable(res.data);
+                        calculateStats(res.data);
+                    } else {
+                        document.getElementById('attendance-tbody').innerHTML = `<tr><td colspan="6" class="text-center py-6 text-rose-500">無法加載數據：${res.message}</td></tr>`;
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('attendance-tbody').innerHTML = `<tr><td colspan="6" class="text-center py-6 text-rose-500">加載數據失敗，請確認網路連線。</td></tr>`;
+                });
         }
 
-        function handleLogout() {
-            window.location.reload();
+        // 動態生成所別篩選下拉選單
+        function buildOfficeFilterOptions(data) {
+            const offices = new Set();
+            data.forEach(row => { if(row.office) offices.add(row.office); });
+            
+            const filterSelect = document.getElementById('office-filter');
+            filterSelect.innerHTML = '<option value="ALL">全部所別 (跨所聯查)</option>';
+            
+            offices.forEach(office => {
+                const opt = document.createElement('option');
+                opt.value = office;
+                opt.innerText = office;
+                filterSelect.appendChild(opt);
+            });
+        }
+
+        // 篩選切換邏輯
+        function filterDataByOffice() {
+            const selectedOffice = document.getElementById('office-filter').value;
+            if(selectedOffice === "ALL") {
+                renderTable(rawAttendanceData);
+                calculateStats(rawAttendanceData);
+            } else {
+                const filtered = rawAttendanceData.filter(row => row.office === selectedOffice);
+                renderTable(filtered);
+                calculateStats(filtered);
+            }
+        }
+
+        // 渲染表格明細
+        function renderTable(data) {
+            const tbody = document.getElementById('attendance-tbody');
+            if(data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">📅 今日目前尚無任何打卡數據</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = data.map(row => {
+                const typeClass = row.type === "上班" ? "text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded" : "text-slate-600 bg-slate-100 px-2 py-0.5 rounded";
+                return `
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="p-3.5 text-slate-500 font-mono">${row.timestamp || "---"}</td>
+                        <td class="p-3.5"><span class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-semibold text-[11px]">${row.office || "未註記"}</span></td>
+                        <td class="p-3.5 font-mono">${row.empId}</td>
+                        <td class="p-3.5 text-slate-800 font-bold">${row.name}</td>
+                        <td class="p-3.5"><span class="${typeClass}">${row.type}</span></td>
+                        <td class="p-3.5 text-slate-400 max-w-xs truncate">${row.memo || "—"}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // 統計頂欄數據
+        function calculateStats(data) {
+            document.getElementById('stat-total-count').innerText = `${data.length} 筆`;
+            const onCount = data.filter(row => row.type === "上班").length;
+            document.getElementById('stat-on-count').innerText = `${onCount} 人`;
+            const memoCount = data.filter(row => row.memo && row.memo.trim() !== "").length;
+            document.getElementById('stat-memo-count').innerText = `${memoCount} 筆`;
         }
     </script>
 </body>
