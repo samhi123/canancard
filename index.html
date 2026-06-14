@@ -134,7 +134,18 @@
 
     </main>
 
-    <nav class="bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0 h-16 flex items-center justify-around px-2 shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.03)] z-50">
+    <!-- 查無員工資料時顯示 LINE ID -->
+    <div id="bind-overlay" class="hidden fixed inset-0 bg-black bg-opacity-60 z-[100] flex items-center justify-center px-6">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-xl text-center">
+            <div class="text-3xl">⚠️</div>
+            <h2 class="text-lg font-bold text-gray-800">尚未建立員工資料</h2>
+            <p class="text-sm text-gray-500">請將以下 LINE ID 提供給管理員，由管理員在後台建立您的員工資料後即可使用。</p>
+            <div class="bg-gray-50 rounded-xl p-3 break-all text-xs text-gray-700 font-mono select-all" id="show-line-uid"></div>
+            <p class="text-xs text-gray-400">長按上方 ID 可複製</p>
+        </div>
+    </div>
+
+<nav class="bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0 h-16 flex items-center justify-around px-2 shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.03)] z-50">
         <button onclick="switchPage('clock')" id="nav-clock" class="flex flex-col items-center justify-center w-20 text-indigo-600 transition-colors">
             <i class="fa-solid fa-clock-rotate-left text-xl"></i>
             <span class="text-[11px] font-bold mt-1">打卡首頁</span>
@@ -213,23 +224,42 @@
                         liff.getProfile()
                             .then(profile => {
                                 console.log("LINE Profile 撈取成功:", profile);
-                                
-                                // 覆蓋全域變數與網頁上的標籤名字
-                                currentEmployee.name = profile.displayName; 
+                                currentEmployee.name = profile.displayName;
                                 document.getElementById('userName').innerText = profile.displayName;
-                                
-                                // 替換頭貼為 LINE 真實大頭貼圖片
+
                                 if (profile.pictureUrl) {
-                                    document.getElementById('userAvatarContainer').innerHTML = `
-                                        <img src="${profile.pictureUrl}" class="w-full h-full rounded-full object-cover">`;
+                                    document.getElementById('userAvatarContainer').innerHTML =
+                                        `<img src="${profile.pictureUrl}" class="w-full h-full rounded-full object-cover">`;
+                                }
+
+                                // 用 LINE UID 查出員工工號
+                                currentEmployee.lineUid = profile.userId;
+                                return fetch(`${GAS_WEB_APP_URL}?action=verifyLogin&lineUid=${encodeURIComponent(profile.userId)}`);
+                            })
+                            .then(r => r.json())
+                            .then(res => {
+                                if (res.status === 'success') {
+                                    applyEmployeeData(res.data);
+                                } else {
+                                    // 查無此人 → 顯示 LINE ID 讓員工回報給管理員
+                                    document.getElementById('show-line-uid').innerText = currentEmployee.lineUid || '無法取得';
+                                    document.getElementById('bind-overlay').classList.remove('hidden');
                                 }
                             })
-                            .catch(err => console.error("抓取 LINE 個資失敗:", err));
+                            .catch(err => console.error("驗證失敗:", err));
                     }
                 })
                 .catch(error => {
                     console.error("LIFF 初始化失敗:", error);
                 });
+        }
+
+        // 套用員工資料到全域變數與畫面
+        function applyEmployeeData(data) {
+            currentEmployee.empId = data.empId;
+            currentEmployee.name  = data.name;
+            document.getElementById('userName').innerText  = data.name;
+            document.getElementById('userEmpId').innerText = `工號：${data.empId} · ${data.role}`;
         }
 
         // --- 4. 介面與功能函式定義 ---
@@ -385,15 +415,26 @@
                         container.innerHTML = `<div class="text-center text-gray-400 text-sm py-4">目前尚無申請紀錄<br><small>查詢工號：${empId}</small></div>`;
                         return;
                     }
-                    // 日期簡化：「2026-06-14 09:00」→「6/14 09:00」
+                    // 日期格式：「2026-06-14 09:00」→「115年6月14日 上午9：00」
                     function fmtDT(str) {
                         if (!str) return '';
                         const parts = str.trim().split(' ');
-                        const dateParts = parts[0].split('-');
-                        const date = dateParts.length === 3
-                            ? `${parseInt(dateParts[1])}/${parseInt(dateParts[2])}`
-                            : parts[0];
-                        return parts[1] ? `${date} ${parts[1].slice(0,5)}` : date;
+                        const d = parts[0].split('-');
+                        if (d.length !== 3) return str;
+                        const roc   = parseInt(d[0]) - 1911;
+                        const month = parseInt(d[1]);
+                        const day   = parseInt(d[2]);
+                        let timeStr = '';
+                        if (parts[1]) {
+                            const t = parts[1].split(':');
+                            let h = parseInt(t[0]);
+                            const m = (t[1] || '00').slice(0, 2);
+                            const period = h < 12 ? '上午' : '下午';
+                            if (h === 0) h = 12;
+                            else if (h > 12) h -= 12;
+                            timeStr = ` ${period}${h}：${m}`;
+                        }
+                        return `${roc}年${month}月${day}日${timeStr}`;
                     }
 
                     container.innerHTML = res.data.map(f => {
