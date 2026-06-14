@@ -189,6 +189,8 @@
             }
             console.log("員工端 GAS 網址加載成功:", GAS_WEB_APP_URL);
             initializeLiff();
+            // 頁面重新整理後，延遲 5 秒等 LIFF 登入完成，再讀取今日打卡狀態
+            setTimeout(loadTodayAttendance, 5000);
         });
 
         // --- 3. LINE LIFF 初始化與個資抓取功能 ---
@@ -266,8 +268,9 @@
 
         // 讀取今日打卡紀錄並顯示在首頁
         function loadTodayAttendance() {
-            if (!GAS_WEB_APP_URL || !currentEmployee.empId) return;
-            fetch(`${GAS_WEB_APP_URL}?action=getTodayAttendance&empId=${encodeURIComponent(currentEmployee.empId)}`)
+            const empId = currentEmployee.empId;
+            if (!GAS_WEB_APP_URL || !empId || empId === 'E001') return; // 尚未登入時跳過
+            fetch(`${GAS_WEB_APP_URL}?action=getTodayAttendance&empId=${encodeURIComponent(empId)}`)
                 .then(r => r.json())
                 .then(res => {
                     if (res.status !== 'success') return;
@@ -275,12 +278,12 @@
                     const inEl  = document.getElementById('todayClockIn');
                     const outEl = document.getElementById('todayClockOut');
                     if (d.clockIn) {
-                        inEl.innerText   = `${d.clockIn} (成功)`;
-                        inEl.className   = "font-medium text-emerald-600";
+                        inEl.innerText  = `${d.clockIn} (成功)`;
+                        inEl.className  = "font-medium text-emerald-600";
                     }
                     if (d.clockOut) {
-                        outEl.innerText  = `${d.clockOut} (成功)`;
-                        outEl.className  = "font-medium text-emerald-600";
+                        outEl.innerText = `${d.clockOut} (成功)`;
+                        outEl.className = "font-medium text-emerald-600";
                     }
                 })
                 .catch(() => {});
@@ -356,6 +359,7 @@
             })
             .then(() => {
                 alert(`🎉 系統已成功寫入：${type}打卡紀錄！\n打卡員工：${currentEmployee.name}\n時間：${nowTime}`);
+                // 先立即更新畫面，再延遲 2 秒從 GAS 確認最新狀態
                 if (type === '上班') {
                     document.getElementById('todayClockIn').innerText = `${nowTime} (成功)`;
                     document.getElementById('todayClockIn').className = "font-medium text-emerald-600";
@@ -363,6 +367,7 @@
                     document.getElementById('todayClockOut').innerText = `${nowTime} (成功)`;
                     document.getElementById('todayClockOut').className = "font-medium text-emerald-600";
                 }
+                setTimeout(loadTodayAttendance, 2000); // 2秒後從GAS重新確認
             })
             .catch(error => {
                 console.error("API 錯誤:", error);
