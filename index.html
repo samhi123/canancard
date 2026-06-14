@@ -261,6 +261,29 @@
             document.getElementById('userName').innerText  = data.name;
             document.getElementById('userRole').innerText  = data.role || '員工';
             document.getElementById('userEmpId').innerText = `權限：${data.role || '一般'}`;
+            loadTodayAttendance(); // 登入後立即讀取今日打卡狀態
+        }
+
+        // 讀取今日打卡紀錄並顯示在首頁
+        function loadTodayAttendance() {
+            if (!GAS_WEB_APP_URL || !currentEmployee.empId) return;
+            fetch(`${GAS_WEB_APP_URL}?action=getTodayAttendance&empId=${encodeURIComponent(currentEmployee.empId)}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status !== 'success') return;
+                    const d = res.data;
+                    const inEl  = document.getElementById('todayClockIn');
+                    const outEl = document.getElementById('todayClockOut');
+                    if (d.clockIn) {
+                        inEl.innerText   = `${d.clockIn} (成功)`;
+                        inEl.className   = "font-medium text-emerald-600";
+                    }
+                    if (d.clockOut) {
+                        outEl.innerText  = `${d.clockOut} (成功)`;
+                        outEl.className  = "font-medium text-emerald-600";
+                    }
+                })
+                .catch(() => {});
         }
 
         // --- 4. 介面與功能函式定義 ---
@@ -404,16 +427,12 @@
             fetch(`${GAS_WEB_APP_URL}?action=getMyForms&empId=${encodeURIComponent(empId)}`)
                 .then(r => r.json())
                 .then(res => {
-                    // 顯示診斷資訊（確認後可移除）
-                    console.log("getMyForms 回應:", JSON.stringify(res));
-                    console.log("查詢工號:", empId);
-
                     if (res.status !== 'success') {
-                        container.innerHTML = `<div class="text-center text-red-400 text-sm py-4">❌ GAS 回傳錯誤：${res.message || '未知'}<br><small class="text-gray-400">查詢工號：${empId}</small></div>`;
+                        container.innerHTML = `<div class="text-center text-red-400 text-sm py-4">❌ 載入失敗：${res.message || '請稍後再試'}</div>`;
                         return;
                     }
                     if (res.data.length === 0) {
-                        container.innerHTML = `<div class="text-center text-gray-400 text-sm py-4">目前尚無申請紀錄<br><small>查詢工號：${empId}</small></div>`;
+                        container.innerHTML = `<div class="text-center text-gray-400 text-sm py-4">目前尚無申請紀錄</div>`;
                         return;
                     }
                     // 日期格式：「2026-06-14 09:00」→「115年6月14日 上午9：00」
