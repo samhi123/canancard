@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>跨所差勤數據整合後台</title>
-    <!-- 引入美化套件與圖示 -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- 引入環境設定檔 -->
+    <script src="https://static.liff.line.me/edge/2/sdk.js"></script>
     <script src="env.js"></script>
     <style>
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f1f5f9; }
@@ -15,7 +14,6 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between">
 
-    <!-- 頂部導覽列 -->
     <nav class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center shadow-md">
         <div class="flex items-center space-x-3">
             <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-xl shadow-md">
@@ -31,21 +29,24 @@
         </a>
     </nav>
 
-    <!-- ========================================== -->
-    <!-- 狀態一：管理員安全環境驗證中 -->
-    <!-- ========================================== -->
-    <div id="admin-auth-view" class="flex-1 flex flex-col justify-center items-center px-4 py-12">
+    <div id="loading-view" class="fixed inset-0 bg-slate-900/10 backdrop-blur-xs flex flex-col justify-center items-center z-50">
+        <div class="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center">
+            <i class="fa-solid fa-shield-halved animate-spin text-3xl text-indigo-600 mb-3"></i>
+            <p class="text-sm font-semibold text-slate-700">正在執行管理員安全環境驗證...</p>
+        </div>
+    </div>
+
+    <div id="admin-login-modal" class="hidden fixed inset-0 bg-slate-100 flex flex-col justify-center items-center px-4 z-40">
         <div class="bg-white p-8 rounded-2xl shadow-xl max-w-sm w-full text-center space-y-4 border border-slate-200">
-            <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-2xl mx-auto shadow-inner">
-                <i id="lock-icon" class="fa-solid fa-shield-halved animate-pulse"></i>
+            <div class="w-16 h-16 bg-slate-50 text-slate-700 rounded-full flex items-center justify-center text-2xl mx-auto shadow-inner">
+                <i class="fa-solid fa-lock"></i>
             </div>
             <div>
-                <h3 class="text-base font-bold text-slate-800">管理員權限驗證</h3>
-                <p class="text-xs text-slate-400 mt-1">請輸入最高管理員之工號與密碼</p>
+                <h3 class="text-base font-bold text-slate-800">管理員手動登入</h3>
+                <p class="text-xs text-slate-400 mt-1">系統偵測到非 LINE 環境，請執行安全驗證</p>
             </div>
             
-            <!-- 登入表單 -->
-            <form onsubmit="handleAdminLogin(event)" class="space-y-3 text-left">
+            <form onsubmit="handleAdminPasswordLogin(event)" class="space-y-3 text-left">
                 <div>
                     <label class="block text-[11px] font-semibold text-slate-500 mb-1">管理員工號</label>
                     <input type="text" id="admin-empId" required placeholder="例如: 001" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:border-indigo-500">
@@ -61,12 +62,8 @@
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- 狀態二：跨所資料主面板 (驗證通過後展示) -->
-    <!-- ========================================== -->
     <main id="admin-dashboard" class="hidden flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
         
-        <!-- 數據統計頂欄 -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex items-center space-x-4">
                 <div class="p-3 bg-indigo-50 text-indigo-600 rounded-lg text-xl"><i class="fa-solid fa-users"></i></div>
@@ -91,7 +88,6 @@
             </div>
         </div>
 
-        <!-- 篩選控制列 -->
         <div class="bg-white p-4 rounded-xl shadow-xs border border-slate-200/80 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
             <h2 class="font-bold text-slate-800 text-sm flex items-center"><i class="fa-solid fa-list-check mr-2 text-indigo-500"></i> 全所別實時差勤明細</h2>
             <div class="flex items-center space-x-2 w-full md:w-auto">
@@ -102,7 +98,6 @@
             </div>
         </div>
 
-        <!-- 明細表格卡片 -->
         <div class="bg-white rounded-xl shadow-xs border border-slate-200/80 overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse text-xs">
@@ -133,35 +128,99 @@
     <script>
         let rawAttendanceData = [];
 
-        // 處理管理員手動登入驗證
-        function handleAdminLogin(event) {
+        window.onload = function() {
+            initAdminSecurityCheck();
+        };
+
+        // 【第一關】：自動判斷 LINE 及 Admin 權限
+        function initAdminSecurityCheck() {
+            // 檢查是否在 LINE / LIFF 環境
+            if (!navigator.userAgent.includes("Line") && !navigator.userAgent.includes("LIFF")) {
+                // 沒有 LINE -> 直接進入手動登入畫面
+                showLoginModalView();
+                return;
+            }
+
+            // 有 LINE -> 初始化 LIFF
+            liff.init({ liffId: SYSTEM_ENV.LIFF_ID })
+                .then(() => {
+                    if (liff.isInClient() || liff.isLoggedIn()) {
+                        liff.getProfile().then(profile => {
+                            // 拿 LINE UID 去後端撈資料，判斷有沒有 Admin 權限
+                            let url = `${SYSTEM_ENV.GAS_WEB_APP_URL}?action=verifyLogin&lineUid=${encodeURIComponent(profile.userId)}`;
+                            fetch(url)
+                                .then(res => res.json())
+                                .then(res => {
+                                    if (res.status === "success" && res.data.role === "Admin") {
+                                        // 有 LINE 且權限設定有 Admin -> 自動登入成功
+                                        unlockAdminDashboard();
+                                    } else {
+                                        // 有 LINE 但權限不是 Admin -> 依舊強制退回登入畫面
+                                        showLoginModalView();
+                                    }
+                                })
+                                .catch(() => showLoginModalView());
+                        }).catch(() => showLoginModalView());
+                    } else {
+                        showLoginModalView();
+                    }
+                })
+                .catch(() => showLoginModalView());
+        }
+
+        // 【第二關】：沒有 LINE 時的手動帳密登入處理
+        function handleAdminPasswordLogin(event) {
             event.preventDefault();
             const empId = document.getElementById('admin-empId').value.trim();
             const password = document.getElementById('admin-password').value.trim();
 
-            const lockIcon = document.getElementById('lock-icon');
-            lockIcon.className = "fa-solid fa-spinner animate-spin";
+            // 顯示遮罩載入中
+            document.getElementById('admin-login-modal').classList.add('hidden');
+            document.getElementById('loading-view').classList.remove('hidden');
 
-            // 呼叫 GAS 進行最高管理員權限驗證 (地毯式防吃 0 匹配)
             let url = `${SYSTEM_ENV.GAS_WEB_APP_URL}?action=verifyPasswordLogin&empId=${encodeURIComponent(empId)}&password=${encodeURIComponent(password)}`;
 
             fetch(url)
                 .then(res => res.json())
                 .then(res => {
+                    // 輸入帳密後，嚴格判斷是否有 Admin 權限
                     if (res.status === "success" && res.data.role === "Admin") {
-                        // 驗證成功，解鎖後台
-                        document.getElementById('admin-auth-view').classList.add('hidden');
-                        document.getElementById('admin-dashboard').classList.remove('hidden');
-                        fetchGlobalAttendanceData();
+                        // 有 Admin 權限 -> 順利登入後台畫面
+                        unlockAdminDashboard();
                     } else {
-                        lockIcon.className = "fa-solid fa-shield-halved animate-pulse";
-                        alert("⚠️ 安全阻斷：\n您不具備最高管理員(Admin)權限，或者輸入的核心憑證有誤，系統拒絕存取。");
+                        // 沒有就跳出無權限的畫面
+                        triggerAccessDenied();
                     }
                 })
                 .catch(() => {
-                    lockIcon.className = "fa-solid fa-shield-halved animate-pulse";
-                    alert("連線失敗，無法與雲端安全中心通訊。");
+                    triggerAccessDenied();
                 });
+        }
+
+        // 顯示手動登入介面
+        function showLoginModalView() {
+            document.getElementById('loading-view').classList.add('hidden');
+            document.getElementById('admin-dashboard').classList.add('hidden');
+            document.getElementById('admin-login-modal').classList.remove('hidden');
+        }
+
+        // 解鎖並載入後台數據畫面
+        function unlockAdminDashboard() {
+            document.getElementById('loading-view').classList.add('hidden');
+            document.getElementById('admin-login-modal').classList.add('hidden');
+            document.getElementById('admin-dashboard').classList.remove('hidden');
+            fetchGlobalAttendanceData();
+        }
+
+        // 觸發「無權限」阻斷畫面
+        function triggerAccessDenied() {
+            document.getElementById('loading-view').classList.add('hidden');
+            document.getElementById('admin-login-modal').classList.add('hidden');
+            document.getElementById('admin-dashboard').classList.add('hidden');
+            
+            // 直接彈出警告，並把畫面徹底鎖死或導回首頁
+            alert("⚠️ 安全阻斷：\n您不具備最高管理員(Admin)權限，系統拒絕存取。");
+            window.location.href = "index.html"; 
         }
 
         // 抓取全公司所有所別的差勤數據
