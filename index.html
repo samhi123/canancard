@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>迦南科技管理部 行動打卡系統</title>
+    <title>企業雲端行動打卡系統</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://static.liff.line.me/edge/2/sdk.js"></script>
@@ -133,9 +133,16 @@
             initLiffSystem();
         };
 
-        // 初始化 LIFF 系統 (修正防卡死安全機制)
+        // 初始化 LIFF 系統 (全面防護版：杜絕任何因網路或套件遺失造成的卡死)
         function initLiffSystem() {
-            // 如果是在標準一般瀏覽器環境，完全不等待 LIFF，直接切換傳統密碼登入，防止因 LINE 套件阻斷卡死
+            // 【安全機制 1】：如果根本連不上 LINE 伺服器，導致 liff 未定義，直接放行去帳密登入
+            if (typeof liff === "undefined") {
+                console.warn("⚠️ 偵測到 LINE LIFF SDK 未成功載入，自動切換至帳密登入模式。");
+                showLoginView();
+                return;
+            }
+
+            // 【安全機制 2】：如果不是在 LINE App 內打開，直接放行去帳密登入
             if (!navigator.userAgent.includes("Line") && !navigator.userAgent.includes("LIFF")) {
                 console.log("偵測到為一般瀏覽器環境，直接啟動工號密碼登入。");
                 showLoginView();
@@ -147,24 +154,29 @@
                 return;
             }
 
-            // LINE 內部環境執行初始化
-            liff.init({ liffId: SYSTEM_ENV.LIFF_ID })
-                .then(() => {
-                    if (liff.isInClient()) {
-                        liff.getProfile().then(profile => {
-                            verifyEmployeeByLineUid(profile.userId); 
-                        }).catch(err => {
-                            console.error("取得 LINE Profile 失敗:", err);
+            // 只有安檢都通過（在 LINE 內且元件正常），才走 LINE 驗證
+            try {
+                liff.init({ liffId: SYSTEM_ENV.LIFF_ID })
+                    .then(() => {
+                        if (liff.isInClient()) {
+                            liff.getProfile().then(profile => {
+                                verifyEmployeeByLineUid(profile.userId); 
+                            }).catch(err => {
+                                console.error("取得 LINE Profile 失敗:", err);
+                                showLoginView();
+                            });
+                        } else {
                             showLoginView();
-                        });
-                    } else {
+                        }
+                    })
+                    .catch(err => {
+                        console.error("LIFF 啟用失敗，切換至傳統密碼模式:", err);
                         showLoginView();
-                    }
-                })
-                .catch(err => {
-                    console.error("LIFF 啟用失敗，切換至傳統密碼模式:", err);
-                    showLoginView(); // 就算 LIFF 報錯，也強制進入帳密畫面，絕不卡死
-                });
+                    });
+            } catch (e) {
+                console.error("執行 LIFF 初始化時發生例外錯誤:", e);
+                showLoginView();
+            }
         }
 
         // 後端驗證：LINE UID 模式
@@ -264,7 +276,7 @@
             document.getElementById('loading-view').classList.add('hidden');
             document.getElementById('login-view').classList.add('hidden');
             
-            // 💡 動態填入經後端安全驗證後的正確員工資料，拒絕寫死資料
+            // 動態填入經後端安全驗證後的正確員工資料
             document.getElementById('nav-user-name').innerText = CURRENT_USER.name;
             document.getElementById('nav-user-empid').innerText = CURRENT_USER.empId;
             document.getElementById('nav-user-role').innerText = CURRENT_USER.role === "Admin" ? "最高管理員" : "在職員工";
