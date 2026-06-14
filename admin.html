@@ -16,6 +16,35 @@
 </head>
 <body class="p-4 md:p-8">
 
+    <!-- 帳號密碼登入蓋板（LINE 無法偵測時顯示） -->
+    <div id="admin-login-overlay" class="fixed inset-0 bg-gradient-to-br from-indigo-700 to-indigo-900 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-xs w-full p-6 space-y-4">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fa-solid fa-user-shield text-2xl text-indigo-600"></i>
+                </div>
+                <h2 class="text-lg font-bold text-gray-800">管理員登入</h2>
+                <p id="admin-login-company-name" class="text-sm text-gray-400 mt-1">人事後台管理系統</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">管理員工號</label>
+                <input type="text" id="admin-login-empId" placeholder="請輸入管理員工號"
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-300">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">密碼</label>
+                <input type="password" id="admin-login-password" placeholder="請輸入密碼"
+                    onkeydown="if(event.key==='Enter') loginAdminWithPassword()"
+                    class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-300">
+            </div>
+            <p id="admin-login-error-msg" class="text-xs text-red-500 text-center hidden"></p>
+            <button onclick="loginAdminWithPassword()"
+                class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold py-2.5 rounded-xl transition-all shadow-md">
+                <i class="fa-solid fa-right-to-bracket mr-2"></i>登入後台
+            </button>
+        </div>
+    </div>
+
     <div class="max-w-6xl mx-auto">
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-200 pb-4 mb-6 gap-2">
             <div>
@@ -192,6 +221,53 @@
         let currentAdminLineUid = "";
         let hrProfilesData = [];
 
+        function showAdminPasswordLogin() {
+            if (SYSTEM_ENV.COMPANY_NAME) {
+                document.getElementById('admin-login-company-name').innerText = SYSTEM_ENV.COMPANY_NAME;
+            }
+            document.getElementById('admin-login-overlay').classList.remove('hidden');
+            document.getElementById('admin-role-tag').innerText = `帳號密碼登入 ${APP_VERSION}`;
+        }
+
+        function loginAdminWithPassword() {
+            const empId    = document.getElementById('admin-login-empId').value.trim();
+            const password = document.getElementById('admin-login-password').value.trim();
+            const errEl    = document.getElementById('admin-login-error-msg');
+
+            if (!empId || !password) {
+                errEl.innerText = "請輸入工號和密碼";
+                errEl.classList.remove('hidden');
+                return;
+            }
+            errEl.classList.add('hidden');
+
+            fetch(`${GAS_WEB_APP_URL}?action=loginWithPassword&empId=${encodeURIComponent(empId)}&password=${encodeURIComponent(password)}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        if (res.data.role !== 'Admin') {
+                            errEl.innerText = "此帳號不具備管理員權限";
+                            errEl.classList.remove('hidden');
+                            return;
+                        }
+                        // 帳號密碼登入成功，lineUid 留空（後端 isAdmin 將不再強制檢查）
+                        currentAdminLineUid = "PWD_LOGIN:" + empId;
+                        document.getElementById('admin-login-overlay').classList.add('hidden');
+                        document.getElementById('admin-role-tag').innerText = `${res.data.name}｜${res.data.branch || ''}｜Admin ${APP_VERSION}`;
+                        loadPendingForms();
+                        forcedFreshLoadHRProfiles();
+                        loadAttendanceReports();
+                    } else {
+                        errEl.innerText = res.message || "工號或密碼錯誤";
+                        errEl.classList.remove('hidden');
+                    }
+                })
+                .catch(() => {
+                    errEl.innerText = "連線失敗，請稍後再試";
+                    errEl.classList.remove('hidden');
+                });
+        }
+
         window.onload = function() {
             if (SYSTEM_ENV.COMPANY_NAME) {
                 document.getElementById('ui-company-name').innerText = SYSTEM_ENV.COMPANY_NAME;
@@ -200,14 +276,23 @@
                 document.getElementById('current-time-clock').innerText = "⏱️ " + new Date().toLocaleString('zh-TW', {hour12:false});
             }, 1000);
 
-            // 顯示版本號
             document.getElementById('admin-role-tag').innerText = `LINE 登入驗證中... ${APP_VERSION}`;
 
-            // 初始化 LIFF 並驗證管理員身份
+            // 初始化 LIFF，失敗或非 LINE 環境時改用帳號密碼登入
+            if (typeof liff === "undefined") {
+                showAdminPasswordLogin();
+                return;
+            }
+
             liff.init({ liffId: LIFF_ID })
                 .then(() => {
+                    // 不在 LINE App 內（電腦瀏覽器），改用帳號密碼登入
+                    if (!liff.isInClient() && !liff.isLoggedIn()) {
+                        showAdminPasswordLogin();
+                        return;
+                    }
                     if (!liff.isLoggedIn()) {
-                        liff.login(); // 尚未登入 LINE，跳轉登入頁
+                        liff.login();
                         return;
                     }
                     return liff.getProfile();
@@ -218,7 +303,8 @@
                     verifyAdminIdentity(profile.userId);
                 })
                 .catch(() => {
-                    document.body.innerHTML = `<div class="text-center p-20 text-red-600 font-bold text-xl">❌ LINE 登入初始化失敗，請確認 LIFF ID 設定。</div>`;
+                    // LIFF 初始化失敗，改用帳號密碼登入
+                    showAdminPasswordLogin();
                 });
         };
 
