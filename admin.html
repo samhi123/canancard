@@ -26,6 +26,7 @@
                 <h2 class="text-lg font-bold text-gray-800">管理員登入</h2>
                 <p id="admin-login-company-name" class="text-sm text-gray-400 mt-1">人事後台管理系統</p>
             </div>
+            <div id="admin-login-debug-box" class="hidden bg-amber-50 border border-amber-200 rounded-lg p-2 text-[11px] text-amber-700 leading-relaxed break-all whitespace-pre-line"></div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">管理員工號</label>
                 <input type="text" id="admin-login-empId" placeholder="請輸入管理員工號"
@@ -272,9 +273,16 @@
         let currentAdminBranch = "";   // 登入後記下管理員所別
         let hrProfilesData = [];
 
-        function showAdminPasswordLogin() {
+        function showAdminPasswordLogin(debugInfo) {
             if (SYSTEM_ENV.COMPANY_NAME) {
                 document.getElementById('admin-login-company-name').innerText = SYSTEM_ENV.COMPANY_NAME;
+            }
+            const debugBox = document.getElementById('admin-login-debug-box');
+            if (debugInfo) {
+                debugBox.innerText = debugInfo;
+                debugBox.classList.remove('hidden');
+            } else {
+                debugBox.classList.add('hidden');
             }
             document.getElementById('admin-login-overlay').classList.remove('hidden');
             document.getElementById('admin-role-tag').innerText = `帳號密碼登入 ${APP_VERSION}`;
@@ -352,9 +360,10 @@
                     currentAdminLineUid = profile.userId;
                     verifyAdminIdentity(profile.userId);
                 })
-                .catch(() => {
+                .catch(err => {
+                    console.error("LIFF 初始化或登入失敗:", err);
                     // LIFF 初始化失敗，改用帳號密碼登入
-                    showAdminPasswordLogin();
+                    showAdminPasswordLogin(`LIFF 初始化失敗：${err && err.message ? err.message : err}\n\n請確認 env.js 的 LIFF_ID 正確，且此網址已加入該 LIFF 的 Endpoint URL 白名單。`);
                 });
         };
 
@@ -363,19 +372,24 @@
             fetch(url)
                 .then(res => res.json())
                 .then(res => {
+                    console.log("verifyAdminIdentity 回應:", res, "查詢的 lineUid:", lineUid);
                     if (res.status === "success" && res.data.role === "Admin") {
                         // LINE UID 比對成功且為 Admin → 直接登入
                         currentAdminBranch = res.data.branch || "";
                         document.getElementById('admin-role-tag').innerText = `${res.data.name}｜${currentAdminBranch || '全所'}｜Admin ${APP_VERSION}`;
                         forcedFreshLoadHRProfiles(true); // true = 載完後串接待審單 & 出勤報表
+                    } else if (res.status === "success") {
+                        // 找到員工，但不是 Admin 權限
+                        showAdminPasswordLogin(`偵測到您的 LINE UID：\n${lineUid}\n\n此 UID 對應到員工「${res.data.name}」，但權限為「${res.data.role}」非 Admin，請至人事檔案將該員工的「系統權限設定」改為 Admin。`);
                     } else {
-                        // LINE UID 找不到對應員工，或非 Admin 權限 → 改用帳號密碼登入
-                        showAdminPasswordLogin();
+                        // GAS 已區分「找不到 UID」與「UID 找到但狀態非在職」兩種情況，直接顯示訊息
+                        showAdminPasswordLogin(`偵測到您的 LINE UID：\n${lineUid}\n\n${res.message || '驗證失敗'}`);
                     }
                 })
-                .catch(() => {
+                .catch(err => {
+                    console.error("verifyAdminIdentity 連線錯誤:", err);
                     // 連線失敗也改用帳號密碼登入，避免完全卡住無法使用
-                    showAdminPasswordLogin();
+                    showAdminPasswordLogin(`連線 GAS 失敗：${err}\n\n請確認 GAS 已重新部署為最新版本，且 env.js 的 GAS_WEB_APP_URL 正確。`);
                 });
         }
 
