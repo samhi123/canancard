@@ -616,15 +616,19 @@
                           })
                         : res.data;
 
-                    // 更新員工下拉選單
+                    // 更新員工下拉選單（以同所別的員工檔案為主，而非只看已有打卡紀錄的人）
                     const empSelect = document.getElementById('report-filter-emp');
                     const prevEmp = empSelect.value;
-                    const empMap = {};
-                    allAttendanceLogs.forEach(log => { empMap[log.empId] = log.name; });
+                    const branchEmps = currentAdminBranch
+                        ? hrProfilesData.filter(e => e.branch === currentAdminBranch)
+                        : hrProfilesData;
                     empSelect.innerHTML = '<option value="">全部員工</option>';
-                    Object.entries(empMap).forEach(([id, name]) => {
-                        empSelect.innerHTML += `<option value="${id}">${name}（${id}）</option>`;
-                    });
+                    branchEmps
+                        .slice()
+                        .sort((a, b) => a.empId.localeCompare(b.empId))
+                        .forEach(emp => {
+                            empSelect.innerHTML += `<option value="${emp.empId}">${emp.name}（${emp.empId}）</option>`;
+                        });
                     empSelect.value = prevEmp;
 
                     renderReportTable(allAttendanceLogs);
