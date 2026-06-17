@@ -342,6 +342,22 @@
                 return;
             }
 
+            initLiffFlow(false);
+        };
+
+        // 清除瀏覽器裡快取的 LIFF 登入權杖（access token 過期時用來重置）
+        function clearLiffStorage() {
+            try {
+                Object.keys(localStorage).forEach(k => {
+                    if (k.indexOf('LIFF_STORE') === 0 || k.indexOf('LIFF_CTX') === 0) localStorage.removeItem(k);
+                });
+                Object.keys(sessionStorage).forEach(k => {
+                    if (k.indexOf('LIFF_STORE') === 0 || k.indexOf('LIFF_CTX') === 0) sessionStorage.removeItem(k);
+                });
+            } catch (e) { console.error("清除 LIFF 快取失敗:", e); }
+        }
+
+        function initLiffFlow(isRetry) {
             liff.init({ liffId: LIFF_ID })
                 .then(() => {
                     // 不在 LINE App 內（電腦瀏覽器），改用帳號密碼登入
@@ -362,10 +378,16 @@
                 })
                 .catch(err => {
                     console.error("LIFF 初始化或登入失敗:", err);
-                    // LIFF 初始化失敗，改用帳號密碼登入
-                    showAdminPasswordLogin(`LIFF 初始化失敗：${err && err.message ? err.message : err}\n\n請確認 env.js 的 LIFF_ID 正確，且此網址已加入該 LIFF 的 Endpoint URL 白名單。`);
+                    const msg = err && err.message ? err.message : String(err);
+                    // 權杖過期：清除快取後自動重試一次，不直接跳密碼登入
+                    if (!isRetry && /access token|expired/i.test(msg)) {
+                        clearLiffStorage();
+                        initLiffFlow(true);
+                        return;
+                    }
+                    showAdminPasswordLogin(`LIFF 初始化失敗：${msg}\n\n請確認 env.js 的 LIFF_ID 正確，且此網址已加入該 LIFF 的 Endpoint URL 白名單。`);
                 });
-        };
+        }
 
         function verifyAdminIdentity(lineUid) {
             const url = `${GAS_WEB_APP_URL}?action=verifyLogin&lineUid=${encodeURIComponent(lineUid)}&_t=${new Date().getTime()}`;
