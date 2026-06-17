@@ -364,19 +364,18 @@
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === "success" && res.data.role === "Admin") {
+                        // LINE UID 比對成功且為 Admin → 直接登入
                         currentAdminBranch = res.data.branch || "";
                         document.getElementById('admin-role-tag').innerText = `${res.data.name}｜${currentAdminBranch || '全所'}｜Admin ${APP_VERSION}`;
                         forcedFreshLoadHRProfiles(true); // true = 載完後串接待審單 & 出勤報表
                     } else {
-                        document.body.innerHTML = `<div class="flex flex-col items-center justify-center min-h-screen gap-4">
-                            <div class="text-6xl">🚫</div>
-                            <div class="text-xl font-bold text-red-600">您無權存取人事管理後台</div>
-                            <div class="text-sm text-gray-400">僅限 Admin 角色使用，請聯絡系統管理員</div>
-                        </div>`;
+                        // LINE UID 找不到對應員工，或非 Admin 權限 → 改用帳號密碼登入
+                        showAdminPasswordLogin();
                     }
                 })
                 .catch(() => {
-                    document.body.innerHTML = `<div class="text-center p-20 text-red-600 font-bold text-xl">❌ 連線失敗，請確認 GAS 是否已正確部署。</div>`;
+                    // 連線失敗也改用帳號密碼登入，避免完全卡住無法使用
+                    showAdminPasswordLogin();
                 });
         }
 
