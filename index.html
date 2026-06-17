@@ -408,19 +408,59 @@
             }
         }
 
-        function handleClock(type) {
-            if (!GAS_WEB_APP_URL) { 
-                alert("❌ 連線失敗：尚未成功載入 GAS 雲端網址，請確認 env.txt 設定。"); 
-                return; 
+        function handleClock(type, btnEl) {
+            if (!GAS_WEB_APP_URL) {
+                alert("❌ 連線失敗：尚未成功載入 GAS 雲端網址，請確認 env.txt 設定。");
+                return;
             }
+
+            // 鎖住按鈕避免重複點擊，並提示「定位中」
+            const clickedBtn = btnEl || (event && event.currentTarget);
+            const originalHtml = clickedBtn ? clickedBtn.innerHTML : null;
+            if (clickedBtn) {
+                clickedBtn.disabled = true;
+                clickedBtn.classList.add('opacity-60');
+            }
+
+            getCurrentLocation()
+                .then(coords => sendClockRequest(type, coords))
+                .catch(() => {
+                    // 定位失敗仍允許打卡，但不夾帶座標
+                    sendClockRequest(type, null);
+                })
+                .finally(() => {
+                    if (clickedBtn) {
+                        clickedBtn.disabled = false;
+                        clickedBtn.classList.remove('opacity-60');
+                        if (originalHtml !== null) clickedBtn.innerHTML = originalHtml;
+                    }
+                });
+        }
+
+        // 取得目前 GPS 定位座標（Promise 包裝，含逾時保護）
+        function getCurrentLocation() {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) { reject("此裝置/瀏覽器不支援定位"); return; }
+                navigator.geolocation.getCurrentPosition(
+                    pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy }),
+                    err => reject(err),
+                    { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+                );
+            });
+        }
+
+        function sendClockRequest(type, coords) {
             const nowTime = document.getElementById('currentTime').innerText;
-            
+            const hasLoc = coords && typeof coords.lat === 'number' && typeof coords.lng === 'number';
+
             const payload = {
                 action: "clockInOut",
                 empId: currentEmployee.empId,
                 name: currentEmployee.name,
                 type: type,
-                memo: "LINE 現場打卡"
+                memo: hasLoc ? "LINE 現場打卡" : "LINE 現場打卡（未取得定位）",
+                lat: hasLoc ? coords.lat : "",
+                lng: hasLoc ? coords.lng : ""
             };
 
             fetch(GAS_WEB_APP_URL, {
@@ -430,7 +470,8 @@
                 body: JSON.stringify(payload)
             })
             .then(() => {
-                alert(`🎉 系統已成功寫入：${type}打卡紀錄！\n打卡員工：${currentEmployee.name}\n時間：${nowTime}`);
+                const locNote = hasLoc ? "" : "\n⚠️ 未取得定位資訊（請確認已開啟定位權限）";
+                alert(`🎉 系統已成功寫入：${type}打卡紀錄！\n打卡員工：${currentEmployee.name}\n時間：${nowTime}${locNote}`);
                 // 先立即更新畫面，再延遲 2 秒從 GAS 確認最新狀態
                 if (type === '上班') {
                     document.getElementById('todayClockIn').innerText = `${nowTime} (成功)`;

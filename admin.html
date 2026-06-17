@@ -168,6 +168,7 @@
                             <th class="p-3">打卡時間</th>
                             <th class="p-3">打卡類型</th>
                             <th class="p-3">打卡備註說明</th>
+                            <th class="p-3">打卡位置</th>
                         </tr>
                     </thead>
                     <tbody id="report-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
@@ -642,7 +643,7 @@
 
         function loadAttendanceReports() {
             const tbody = document.getElementById('report-table-body');
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
             const url = `${GAS_WEB_APP_URL}?action=getAttendanceReports&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
             fetch(url).then(res => res.json()).then(res => {
                 if (res.status === "success") {
@@ -701,7 +702,7 @@
             const countEl = document.getElementById('report-count');
             tbody.innerHTML = "";
             if (!logs || logs.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">無符合條件的打卡紀錄</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-gray-400">無符合條件的打卡紀錄</td></tr>`;
                 countEl.innerText = "";
                 return;
             }
@@ -714,6 +715,7 @@
                     <td class="p-3 font-bold">${formatTimeAMPM(log.time)}</td>
                     <td class="p-3">${log.type}</td>
                     <td class="p-3 text-gray-400 text-xs">${log.memo || '-'}</td>
+                    <td class="p-3 text-xs">${log.mapLink ? `<a href="${log.mapLink}" target="_blank" class="text-indigo-500 hover:underline"><i class="fa-solid fa-location-dot mr-1"></i>查看地圖</a>` : '<span class="text-gray-300">無</span>'}</td>
                 </tr>`;
             });
         }
@@ -749,11 +751,12 @@
             const rows = document.querySelectorAll('#report-table-body tr');
             if (!rows.length || rows[0].cells.length < 2) { alert('目前沒有可匯出的資料'); return; }
 
-            const headers = ['員工編號', '姓名', '打卡日期', '打卡時間', '打卡類型', '打卡備註說明'];
+            const headers = ['員工編號', '姓名', '打卡日期', '打卡時間', '打卡類型', '打卡備註說明', '打卡位置'];
             let csv = '﻿' + headers.join(',') + '\n'; // BOM for Excel 正確顯示中文
             rows.forEach(row => {
                 const cells = Array.from(row.cells).map(td => {
-                    const text = td.innerText.trim().replace(/"/g, '""');
+                    const link = td.querySelector('a');
+                    const text = (link ? link.href : td.innerText.trim()).replace(/"/g, '""');
                     return `"${text}"`;
                 });
                 csv += cells.join(',') + '\n';
