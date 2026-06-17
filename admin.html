@@ -338,13 +338,22 @@
             document.getElementById('admin-role-tag').innerText = `LINE 登入驗證中... ${APP_VERSION}`;
 
             // 初始化 LIFF，失敗或非 LINE 環境時改用帳號密碼登入
-            if (typeof liff === "undefined") {
+            // 先用環境特徵判斷是否「可能」在 LINE 環境內，不是才呼叫 liff.init()，
+            // 避免在一般電腦瀏覽器測試/直接開網址時，liff.init() 對外連線失敗（Failed to fetch）跳出錯誤訊息
+            if (typeof liff === "undefined" || !looksLikeLiffEnvironment()) {
                 showAdminPasswordLogin();
                 return;
             }
 
             initLiffFlow(false);
         };
+
+        // 判斷目前是否「可能」處於 LINE 的 LIFF 環境（LINE App 內建瀏覽器，或透過 liff.line.me 正式入口進入）
+        function looksLikeLiffEnvironment() {
+            var isLineBrowser = /Line/i.test(navigator.userAgent);
+            var hasLiffParam  = /liff\.state|liff\.referrer/i.test(window.location.search + window.location.hash);
+            return isLineBrowser || hasLiffParam;
+        }
 
         // 清除瀏覽器裡快取的 LIFF 登入權杖（access token 過期時用來重置）
         function clearLiffStorage() {
@@ -388,7 +397,10 @@
                         initLiffFlow(true);
                         return;
                     }
-                    showAdminPasswordLogin(`LIFF 初始化失敗：${msg}\n\n請確認 env.js 的 LIFF_ID 正確，且此網址已加入該 LIFF 的 Endpoint URL 白名單。`);
+                    const hint = /failed to fetch/i.test(msg)
+                        ? "可能原因：網路連線不穩、瀏覽器擴充功能（如廣告/隱私封鎖工具）擋住了對 LINE 伺服器的連線，或裝置暫時無法連上網路，請稍後重試或更換網路環境。"
+                        : "請確認 env.js 的 LIFF_ID 正確，且此網址已加入該 LIFF 的 Endpoint URL 白名單。";
+                    showAdminPasswordLogin(`LIFF 初始化失敗：${msg}\n\n${hint}`);
                 });
         }
 
