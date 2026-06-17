@@ -205,7 +205,8 @@
         // 預設員工資訊（當 LINE LIFF 順利初始化後，會自動被真實 LINE 個資覆蓋）
         const currentEmployee = {
             empId: "E001",
-            name: "未登入員工"
+            name: "未登入員工",
+            viaLine: false   // 是否透過 LINE 登入（打卡需要此為 true，帳密登入則維持 false）
         };
 
         // LIFF ID 從 env.js 讀取
@@ -304,6 +305,7 @@
                             .then(r => r.json())
                             .then(res => {
                                 if (res.status === 'success') {
+                                    currentEmployee.viaLine = true; // 透過 LINE 登入成功，打卡資格符合「用 LINE」這項條件
                                     applyEmployeeData(res.data);
                                 } else {
                                     // 查無此人 → 顯示 LINE UID 讓管理員設定
@@ -414,6 +416,12 @@
                 return;
             }
 
+            // 條件一：必須是透過 LINE 登入（帳號密碼登入者不符合打卡資格）
+            if (!currentEmployee.viaLine) {
+                alert("❌ 無法完成打卡：請使用 LINE 登入後再進行打卡。");
+                return;
+            }
+
             // 鎖住按鈕避免重複點擊，並提示「定位中」
             const clickedBtn = btnEl || (event && event.currentTarget);
             const originalHtml = clickedBtn ? clickedBtn.innerHTML : null;
@@ -422,11 +430,11 @@
                 clickedBtn.classList.add('opacity-60');
             }
 
+            // 條件二：必須成功取得定位，否則不允許打卡（不會送出任何打卡請求）
             getCurrentLocation()
                 .then(coords => sendClockRequest(type, coords))
                 .catch(() => {
-                    // 定位失敗仍允許打卡，但不夾帶座標
-                    sendClockRequest(type, null);
+                    alert("❌ 無法完成打卡：請開啟定位權限後再試一次。");
                 })
                 .finally(() => {
                     if (clickedBtn) {
@@ -451,16 +459,16 @@
 
         function sendClockRequest(type, coords) {
             const nowTime = document.getElementById('currentTime').innerText;
-            const hasLoc = coords && typeof coords.lat === 'number' && typeof coords.lng === 'number';
 
+            // 走到這裡時，已通過「LINE 登入」與「定位成功」兩項檢查，coords 必定有值
             const payload = {
                 action: "clockInOut",
                 empId: currentEmployee.empId,
                 name: currentEmployee.name,
                 type: type,
-                memo: hasLoc ? "LINE 現場打卡" : "LINE 現場打卡（未取得定位）",
-                lat: hasLoc ? coords.lat : "",
-                lng: hasLoc ? coords.lng : ""
+                memo: "LINE 現場打卡",
+                lat: coords.lat,
+                lng: coords.lng
             };
 
             fetch(GAS_WEB_APP_URL, {
@@ -470,8 +478,7 @@
                 body: JSON.stringify(payload)
             })
             .then(() => {
-                const locNote = hasLoc ? "" : "\n⚠️ 未取得定位資訊（請確認已開啟定位權限）";
-                alert(`🎉 系統已成功寫入：${type}打卡紀錄！\n打卡員工：${currentEmployee.name}\n時間：${nowTime}${locNote}`);
+                alert(`🎉 系統已成功寫入：${type}打卡紀錄！\n打卡員工：${currentEmployee.name}\n時間：${nowTime}`);
                 // 先立即更新畫面，再延遲 2 秒從 GAS 確認最新狀態
                 if (type === '上班') {
                     document.getElementById('todayClockIn').innerText = `${nowTime} (成功)`;
