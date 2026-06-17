@@ -360,13 +360,15 @@
         function initLiffFlow(isRetry) {
             liff.init({ liffId: LIFF_ID })
                 .then(() => {
-                    // 不在 LINE App 內（電腦瀏覽器），改用帳號密碼登入
-                    if (!liff.isInClient() && !liff.isLoggedIn()) {
+                    // 用 User-Agent 判斷是否在 LINE 的瀏覽器內（不論是不是透過正式 liff.line.me 網址進入）
+                    var isLineBrowser = /Line/i.test(navigator.userAgent);
+                    // 真正的電腦瀏覽器（非 LINE、非已登入過）才直接跳密碼登入，不強制跳轉
+                    if (!liff.isInClient() && !isLineBrowser && !liff.isLoggedIn()) {
                         showAdminPasswordLogin();
                         return;
                     }
                     if (!liff.isLoggedIn()) {
-                        liff.login();
+                        liff.login(); // 在 LINE 瀏覽器內會自動完成；外部瀏覽器則跳轉 LINE 登入頁
                         return;
                     }
                     return liff.getProfile();
