@@ -118,12 +118,16 @@
 
             <div id="leave-type-block">
                 <label class="block text-sm font-bold text-gray-700 mb-1">假別</label>
-                <select id="form-sub-type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
+                <select id="form-sub-type" onchange="onLeaveSubTypeChange()" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
                     <option value="事假">事假</option>
                     <option value="病假">病假</option>
                     <option value="特休">特休</option>
                     <option value="婚假/喪假">婚假/喪假</option>
                 </select>
+                <div id="annual-leave-info" class="hidden mt-2 bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2.5 text-xs text-indigo-700 flex justify-between">
+                    <span>特休天數：<span id="annual-leave-total" class="font-bold">--</span> 天</span>
+                    <span>剩餘特休天數：<span id="annual-leave-remaining" class="font-bold">--</span> 天</span>
+                </div>
             </div>
 
             <div id="ot-type-block" class="hidden">
@@ -346,6 +350,43 @@
                 branchEl.style.display = 'none';
             }
             loadTodayAttendance(); // 登入後立即讀取今日打卡狀態
+            onLeaveSubTypeChange(); // 若預設假別即為特休，登入後立即顯示特休額度
+        }
+
+        // 假別下拉選單變動時：若選擇「特休」則顯示並讀取特休額度資訊，否則隱藏
+        function onLeaveSubTypeChange() {
+            const subTypeEl = document.getElementById('form-sub-type');
+            const infoEl = document.getElementById('annual-leave-info');
+            if (!subTypeEl || !infoEl) return;
+            if (subTypeEl.value === '特休') {
+                infoEl.classList.remove('hidden');
+                loadAnnualLeaveQuota();
+            } else {
+                infoEl.classList.add('hidden');
+            }
+        }
+
+        // 讀取目前員工的特休額度（年度總額 / 剩餘），單位以半天為單位顯示
+        function loadAnnualLeaveQuota() {
+            const empId = currentEmployee.empId;
+            const totalEl = document.getElementById('annual-leave-total');
+            const remainingEl = document.getElementById('annual-leave-remaining');
+            if (!GAS_WEB_APP_URL || !empId || empId === 'E001') return; // 尚未登入時跳過
+            fetch(`${GAS_WEB_APP_URL}?action=getLeaveQuota&empId=${encodeURIComponent(empId)}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status !== 'success') {
+                        totalEl.innerText = '--';
+                        remainingEl.innerText = '--';
+                        return;
+                    }
+                    totalEl.innerText = res.data.totalDays;
+                    remainingEl.innerText = res.data.remainingDays;
+                })
+                .catch(() => {
+                    totalEl.innerText = '--';
+                    remainingEl.innerText = '--';
+                });
         }
 
         // 讀取今日打卡紀錄並顯示在首頁
@@ -413,6 +454,7 @@
                 btnOvertime.className = "py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition";
                 leaveBlock.classList.remove('hidden');
                 otBlock.classList.add('hidden');
+                onLeaveSubTypeChange();
             } else {
                 btnOvertime.className = "py-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold text-sm transition";
                 btnLeave.className = "py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition";
