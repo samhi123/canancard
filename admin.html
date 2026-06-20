@@ -79,6 +79,9 @@
             <button onclick="switchTab('payroll-history-section')" id="btn-payroll-history-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 <i class="fa-solid fa-file-invoice-dollar mr-1"></i>薪資歷史查詢
             </button>
+            <button onclick="switchTab('payroll-adjustment-section'); loadPayrollAdjustmentLogs();" id="btn-payroll-adjustment-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                <i class="fa-solid fa-clock-rotate-left mr-1"></i>薪資調整紀錄
+            </button>
             <button onclick="switchTab('annual-leave-section'); loadAnnualLeaveQuotas();" id="btn-annual-leave-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 <i class="fa-solid fa-umbrella-beach mr-1"></i>特休查詢
             </button>
@@ -206,11 +209,19 @@
                 </button>
             </div>
             <div id="payroll-preview" class="hidden">
+                <p class="text-xs text-indigo-500 bg-indigo-50 rounded-lg p-2 mb-3"><i class="fa-solid fa-pen-to-square mr-1"></i>底薪／曠職扣款／請假扣款／加班費／應發總額皆可手動修改；若修改的是「已存在」的薪資紀錄，送出時系統會要求填寫調整原因，並自動記錄到「薪資調整紀錄」頁籤。</p>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 text-sm">
-                    <div class="bg-gray-50 rounded-xl p-3"><p class="text-xs text-gray-400">底薪</p><p id="pv-salary" class="font-bold text-gray-800"></p></div>
+                    <div class="bg-gray-50 rounded-xl p-3">
+                        <p class="text-xs text-gray-400 mb-1">底薪</p>
+                        <input type="number" id="pv-salary" class="w-full border border-gray-200 rounded-lg px-2 py-1 font-bold text-gray-800 bg-white">
+                    </div>
                     <div class="bg-gray-50 rounded-xl p-3"><p class="text-xs text-gray-400">日薪</p><p id="pv-dailyWage" class="font-bold text-gray-800"></p></div>
                     <div class="bg-gray-50 rounded-xl p-3"><p class="text-xs text-gray-400">應出勤/實際出勤</p><p id="pv-days" class="font-bold text-gray-800"></p></div>
-                    <div class="bg-red-50 rounded-xl p-3"><p class="text-xs text-gray-400">曠職天數/扣款</p><p id="pv-absent" class="font-bold text-red-600"></p></div>
+                    <div class="bg-red-50 rounded-xl p-3">
+                        <p class="text-xs text-gray-400 mb-1">曠職天數 / 扣款</p>
+                        <p id="pv-absentDays" class="text-xs text-gray-500 mb-1"></p>
+                        <input type="number" id="pv-absentDeduction" class="w-full border border-red-200 rounded-lg px-2 py-1 font-bold text-red-600 bg-white">
+                    </div>
                 </div>
                 <div class="mb-4">
                     <h3 class="text-sm font-bold text-gray-600 mb-2">請假明細（扣薪）</h3>
@@ -218,7 +229,10 @@
                         <thead><tr class="bg-gray-50 text-gray-500 text-xs"><th class="p-2">假別</th><th class="p-2">天數</th><th class="p-2">扣薪比例</th><th class="p-2">扣款金額</th></tr></thead>
                         <tbody id="pv-leave-detail"></tbody>
                     </table>
-                    <p class="text-right text-sm mt-1">請假扣款合計：<span id="pv-leaveDeduction" class="font-bold text-red-600"></span></p>
+                    <div class="flex justify-end items-center gap-2 mt-1">
+                        <label class="text-sm">請假扣款合計：</label>
+                        <input type="number" id="pv-leaveDeduction" class="w-32 border border-red-200 rounded-lg px-2 py-1 text-right font-bold text-red-600">
+                    </div>
                 </div>
                 <div class="mb-4">
                     <h3 class="text-sm font-bold text-gray-600 mb-2">加班明細（加薪）</h3>
@@ -226,14 +240,25 @@
                         <thead><tr class="bg-gray-50 text-gray-500 text-xs"><th class="p-2">加班類型</th><th class="p-2">時數</th><th class="p-2">加班費</th></tr></thead>
                         <tbody id="pv-ot-detail"></tbody>
                     </table>
-                    <p class="text-right text-sm mt-1">加班費合計：<span id="pv-otPay" class="font-bold text-emerald-600"></span></p>
+                    <div class="flex justify-end items-center gap-2 mt-1">
+                        <label class="text-sm">加班費合計：</label>
+                        <input type="number" id="pv-otPay" class="w-32 border border-emerald-200 rounded-lg px-2 py-1 text-right font-bold text-emerald-600">
+                    </div>
                 </div>
                 <div class="mb-4 bg-indigo-50 rounded-xl p-3 text-sm">
                     <p class="font-bold text-gray-700 mb-1">特休額度（統計用，不折算工資）</p>
                     <p id="pv-annual"></p>
                 </div>
+                <div class="mb-4">
+                    <label class="block text-xs text-gray-500 mb-1">調整原因（修改既有薪資紀錄時必填，系統會記錄修改人與時間）</label>
+                    <input type="text" id="pv-reason" placeholder="例如：曠職天數計算有誤，補登請假單後重新調整" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-400">
+                </div>
                 <div class="flex justify-between items-center border-t border-gray-200 pt-3">
-                    <p class="text-lg font-bold text-gray-800">應發總額：<span id="pv-totalPay" class="text-indigo-600"></span></p>
+                    <div class="flex items-center gap-2">
+                        <p class="text-lg font-bold text-gray-800">應發總額：</p>
+                        <input type="number" id="pv-totalPay" class="w-36 border border-indigo-200 rounded-lg px-2 py-1 text-lg font-bold text-indigo-600">
+                        <button onclick="recalcPayrollTotal()" type="button" class="text-xs text-gray-400 hover:text-indigo-500 underline">依目前數值重新加總</button>
+                    </div>
                     <button onclick="confirmSavePayroll()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all">
                         <i class="fa-solid fa-floppy-disk mr-1"></i>確認入帳
                     </button>
@@ -296,9 +321,53 @@
                             <th class="p-3">應發總額</th>
                             <th class="p-3">計算時間</th>
                             <th class="p-3">計算人</th>
+                            <th class="p-3">鎖定狀態</th>
+                            <th class="p-3 text-center">操作</th>
                         </tr>
                     </thead>
                     <tbody id="payhist-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="payroll-adjustment-section" class="tab-content hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-700">薪資調整紀錄</h2>
+                <button onclick="loadPayrollAdjustmentLogs()" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg font-medium transition-all">
+                    <i class="fa-solid fa-rotate mr-1"></i>重新整理
+                </button>
+            </div>
+            <p class="text-xs text-gray-400 mb-3">記錄「薪資計算」頁籤中所有手動調整、以及「薪資歷史查詢」頁籤的鎖定/解鎖事件，包含調整人、調整原因與調整前後數值。</p>
+            <div class="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-xl">
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">年月</label>
+                    <input type="month" id="padjlog-filter-yearMonth" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">員工</label>
+                    <select id="padjlog-filter-emp" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[120px]">
+                        <option value="">全部員工</option>
+                    </select>
+                </div>
+                <button onclick="loadPayrollAdjustmentLogs()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
+                    <i class="fa-solid fa-magnifying-glass mr-1"></i>篩選
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-sm font-semibold border-b border-gray-100">
+                            <th class="p-3">時間</th>
+                            <th class="p-3">年月</th>
+                            <th class="p-3">員工</th>
+                            <th class="p-3">所別</th>
+                            <th class="p-3">事件類型</th>
+                            <th class="p-3">調整內容</th>
+                            <th class="p-3">調整原因</th>
+                            <th class="p-3">操作人</th>
+                        </tr>
+                    </thead>
+                    <tbody id="padjlog-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
                 </table>
             </div>
         </div>
@@ -335,6 +404,48 @@
                     <tbody id="aleave-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <div id="payroll-edit-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+            <h3 id="pem-title" class="text-lg font-bold text-gray-800 mb-4">編輯薪資紀錄</h3>
+            <form id="payroll-edit-form" onsubmit="submitPayrollEdit(event)" class="space-y-3 text-sm">
+                <input type="hidden" id="pem-yearMonth">
+                <input type="hidden" id="pem-empId">
+                <input type="hidden" id="pem-name">
+                <input type="hidden" id="pem-branch">
+                <div>
+                    <label class="block text-gray-600 mb-1 font-medium">底薪</label>
+                    <input type="number" id="pem-salary" class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-gray-600 mb-1 font-medium">曠職扣款</label>
+                    <input type="number" id="pem-absentDeduction" class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-gray-600 mb-1 font-medium">請假扣款</label>
+                    <input type="number" id="pem-leaveDeduction" class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-gray-600 mb-1 font-medium">加班費</label>
+                    <input type="number" id="pem-otPay" class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-gray-600 mb-1 font-medium">應發總額</label>
+                    <input type="number" id="pem-totalPay" class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-gray-600 mb-1 font-medium">調整原因 <span class="text-red-400">*</span></label>
+                    <input type="text" id="pem-reason" required placeholder="請說明本次調整原因" class="w-full border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closePayrollEditModal()" class="px-4 py-2 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-100">取消</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all">
+                        <i class="fa-solid fa-floppy-disk mr-1"></i>儲存調整
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -639,15 +750,18 @@
                         const payrollEmpSelect = document.getElementById('payroll-empId');
                         const payhistEmpSelect = document.getElementById('payhist-filter-emp');
                         const aleaveEmpSelect  = document.getElementById('aleave-filter-emp');
+                        const padjlogEmpSelect = document.getElementById('padjlog-filter-emp');
                         if (payrollEmpSelect) {
                             payrollEmpSelect.innerHTML = '<option value="">請選擇員工</option>';
                             payhistEmpSelect.innerHTML = '<option value="">全部員工</option>';
                             if (aleaveEmpSelect) aleaveEmpSelect.innerHTML = '<option value="">全部員工</option>';
+                            if (padjlogEmpSelect) padjlogEmpSelect.innerHTML = '<option value="">全部員工</option>';
                             visible.slice().sort((a, b) => a.empId.localeCompare(b.empId)).forEach(emp => {
                                 const opt = `<option value="${emp.empId}">${emp.name}（${emp.empId}）</option>`;
                                 payrollEmpSelect.innerHTML += opt;
                                 payhistEmpSelect.innerHTML += opt;
                                 if (aleaveEmpSelect) aleaveEmpSelect.innerHTML += opt;
+                                if (padjlogEmpSelect) padjlogEmpSelect.innerHTML += opt;
                             });
                         }
 
@@ -657,6 +771,7 @@
                             loadAttendanceReports();
                             loadLeaveSettings();
                             loadAnnualLeaveQuotas();
+                            loadPayrollAdjustmentLogs();
                         }
                     }
                 });
@@ -1028,34 +1143,54 @@
                 lastPayrollPreview = d;
 
                 document.getElementById('payroll-preview').classList.remove('hidden');
-                document.getElementById('pv-salary').innerText = d.salary;
+                document.getElementById('pv-salary').value = d.salary;
                 document.getElementById('pv-dailyWage').innerText = d.dailyWage;
                 document.getElementById('pv-days').innerText = `${d.expectedDays} / ${d.actualDays} 天`;
-                document.getElementById('pv-absent').innerText = `${d.absentDays} 天 / -${d.absentDeduction}`;
+                document.getElementById('pv-absentDays').innerText = `${d.absentDays} 天`;
+                document.getElementById('pv-absentDeduction').value = d.absentDeduction;
 
                 const leaveBody = document.getElementById('pv-leave-detail');
                 leaveBody.innerHTML = d.leaveDetail.length
                     ? d.leaveDetail.map(l => `<tr class="border-b border-gray-50"><td class="p-2">${l.subType}</td><td class="p-2">${l.days}</td><td class="p-2">${l.percent}%</td><td class="p-2 text-red-600">-${l.deduction}</td></tr>`).join('')
                     : `<tr><td colspan="4" class="p-2 text-center text-gray-400">本月無已核准請假</td></tr>`;
-                document.getElementById('pv-leaveDeduction').innerText = `-${d.leaveDeduction}`;
+                document.getElementById('pv-leaveDeduction').value = d.leaveDeduction;
 
                 const otBody = document.getElementById('pv-ot-detail');
                 otBody.innerHTML = d.otDetail.length
                     ? d.otDetail.map(o => `<tr class="border-b border-gray-50"><td class="p-2">${o.otType}</td><td class="p-2">${o.hours}</td><td class="p-2 text-emerald-600">+${o.pay}</td></tr>`).join('')
                     : `<tr><td colspan="3" class="p-2 text-center text-gray-400">本月無已核准加班</td></tr>`;
-                document.getElementById('pv-otPay').innerText = `+${d.otPay}`;
+                document.getElementById('pv-otPay').value = d.otPay;
 
                 document.getElementById('pv-annual').innerText = d.annualLeaveQuota
                     ? `總額 ${d.annualLeaveQuota.totalDays} 天｜已用 ${d.annualLeaveQuota.usedDays} 天｜剩餘 ${d.annualLeaveQuota.remainingDays} 天（週期：${d.annualLeaveQuota.cycleStart} ~ ${d.annualLeaveQuota.cycleEnd}）`
                     : '尚無到職日資料，無法計算特休額度';
 
-                document.getElementById('pv-totalPay').innerText = d.totalPay;
+                document.getElementById('pv-totalPay').value = d.totalPay;
+                document.getElementById('pv-reason').value = '';
             }).catch(err => alert('連線錯誤：' + err));
+        }
+
+        // 依目前「底薪 - 曠職扣款 - 請假扣款 + 加班費」重新加總應發總額（僅供參考，仍可手動覆寫）
+        function recalcPayrollTotal() {
+            const salary   = Number(document.getElementById('pv-salary').value) || 0;
+            const absentD  = Number(document.getElementById('pv-absentDeduction').value) || 0;
+            const leaveD   = Number(document.getElementById('pv-leaveDeduction').value) || 0;
+            const otPay    = Number(document.getElementById('pv-otPay').value) || 0;
+            document.getElementById('pv-totalPay').value = Math.round((salary - absentD - leaveD + otPay) * 100) / 100;
         }
 
         function confirmSavePayroll() {
             if (!lastPayrollPreview) { alert('請先完成試算'); return; }
-            const d = lastPayrollPreview;
+            // 以畫面上目前的（可能已手動調整過的）數值為準，覆蓋原始試算結果
+            const d = Object.assign({}, lastPayrollPreview, {
+                salary:          Number(document.getElementById('pv-salary').value) || 0,
+                absentDeduction: Number(document.getElementById('pv-absentDeduction').value) || 0,
+                leaveDeduction:  Number(document.getElementById('pv-leaveDeduction').value) || 0,
+                otPay:           Number(document.getElementById('pv-otPay').value) || 0,
+                totalPay:        Number(document.getElementById('pv-totalPay').value) || 0,
+                reason:          document.getElementById('pv-reason').value.trim()
+            });
+
             if (!confirm(`確定要將 ${d.yearMonth} ${d.name}（${d.empId}）的薪資計算結果存入薪資歷史紀錄嗎？\n應發總額：${d.totalPay}`)) return;
 
             fetch(GAS_WEB_APP_URL, {
@@ -1066,6 +1201,7 @@
             .then(res => {
                 if (res.status === "success") {
                     alert('薪資計算結果已儲存！');
+                    loadPayrollHistory();
                 } else { alert('儲存失敗：' + res.message); }
             })
             .catch(err => alert('連線錯誤：' + err));
@@ -1076,7 +1212,7 @@
 
         function loadPayrollHistory() {
             const tbody = document.getElementById('payhist-table-body');
-            tbody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="11" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
             const yearMonth = document.getElementById('payhist-filter-yearMonth').value;
             const empId = document.getElementById('payhist-filter-emp').value;
             let url = `${GAS_WEB_APP_URL}?action=getPayrollReports&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
@@ -1085,7 +1221,7 @@
 
             fetch(url).then(res => res.json()).then(res => {
                 if (res.status !== "success") {
-                    tbody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-red-400">載入失敗：${res.message || ''}</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="11" class="text-center p-4 text-red-400">載入失敗：${res.message || ''}</td></tr>`;
                     return;
                 }
                 allPayrollHistory = currentAdminBranch
@@ -1093,7 +1229,7 @@
                     : res.data;
                 renderPayrollHistoryTable(allPayrollHistory);
             }).catch(err => {
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-red-400">載入失敗：${err}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="11" class="text-center p-4 text-red-400">載入失敗：${err}</td></tr>`;
             });
         }
 
@@ -1101,10 +1237,14 @@
             const tbody = document.getElementById('payhist-table-body');
             tbody.innerHTML = "";
             if (!list || !list.length) {
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-gray-400">無符合條件的薪資紀錄</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="11" class="text-center p-4 text-gray-400">無符合條件的薪資紀錄</td></tr>`;
                 return;
             }
             list.forEach(p => {
+                const locked = p.lockStatus === '鎖定';
+                const lockBadge = locked
+                    ? `<span class="bg-red-100 text-red-600 px-2 py-0.5 rounded-md text-xs font-medium"><i class="fa-solid fa-lock mr-1"></i>已鎖定</span>`
+                    : `<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md text-xs font-medium"><i class="fa-solid fa-lock-open mr-1"></i>未鎖定</span>`;
                 tbody.innerHTML += `
                     <tr class="border-b border-gray-50">
                         <td class="p-3">${p.yearMonth}</td>
@@ -1116,18 +1256,123 @@
                         <td class="p-3 font-bold">${p.totalPay}</td>
                         <td class="p-3 text-xs text-gray-400">${p.calcTime}</td>
                         <td class="p-3 text-xs text-gray-400">${p.calcBy}</td>
+                        <td class="p-3">${lockBadge}<br><span class="text-[10px] text-gray-400">${p.lastModifiedBy || ''} ${p.lastModifiedTime || ''}</span></td>
+                        <td class="p-3 text-center whitespace-nowrap">
+                            <button onclick='openPayrollEditModal(${JSON.stringify(p)})' ${locked ? 'disabled' : ''} class="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1.5 rounded-lg text-xs font-medium mr-1">
+                                <i class="fa-solid fa-pen mr-1"></i>編輯
+                            </button>
+                            ${locked
+                                ? `<button onclick="unlockPayrollRecord('${p.empId}','${p.yearMonth}')" class="text-amber-600 bg-amber-50 hover:bg-amber-100 px-2.5 py-1.5 rounded-lg text-xs font-medium"><i class="fa-solid fa-lock-open mr-1"></i>解鎖</button>`
+                                : `<button onclick="lockPayrollRecord('${p.empId}','${p.yearMonth}')" class="text-gray-600 bg-gray-100 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg text-xs font-medium"><i class="fa-solid fa-lock mr-1"></i>鎖定</button>`
+                            }
+                        </td>
                     </tr>`;
             });
+        }
+
+        // 開啟編輯彈窗，帶入該筆薪資紀錄目前的數值
+        function openPayrollEditModal(p) {
+            document.getElementById('pem-title').innerText = `編輯薪資紀錄：${p.yearMonth} ${p.name}（${p.empId}）`;
+            document.getElementById('pem-yearMonth').value = p.yearMonth;
+            document.getElementById('pem-empId').value = p.empId;
+            document.getElementById('pem-name').value = p.name;
+            document.getElementById('pem-branch').value = p.branch || '';
+            document.getElementById('pem-salary').value = p.salary;
+            document.getElementById('pem-absentDeduction').value = p.absentDeduction;
+            document.getElementById('pem-leaveDeduction').value = p.leaveDeduction;
+            document.getElementById('pem-otPay').value = p.otPay;
+            document.getElementById('pem-totalPay').value = p.totalPay;
+            document.getElementById('pem-reason').value = '';
+            document.getElementById('payroll-edit-modal').classList.remove('hidden');
+        }
+
+        function closePayrollEditModal() {
+            document.getElementById('payroll-edit-modal').classList.add('hidden');
+        }
+
+        function submitPayrollEdit(event) {
+            event.preventDefault();
+            const reason = document.getElementById('pem-reason').value.trim();
+            if (!reason) { alert('請填寫調整原因'); return; }
+
+            const payrollData = {
+                yearMonth: document.getElementById('pem-yearMonth').value,
+                empId: document.getElementById('pem-empId').value,
+                name: document.getElementById('pem-name').value,
+                branch: document.getElementById('pem-branch').value,
+                salary: Number(document.getElementById('pem-salary').value) || 0,
+                absentDeduction: Number(document.getElementById('pem-absentDeduction').value) || 0,
+                leaveDeduction: Number(document.getElementById('pem-leaveDeduction').value) || 0,
+                otPay: Number(document.getElementById('pem-otPay').value) || 0,
+                totalPay: Number(document.getElementById('pem-totalPay').value) || 0,
+                reason: reason
+            };
+            // 其餘未在此彈窗編輯的欄位（日薪/出勤天數/明細/特休統計）維持原值，從原紀錄中找回
+            const orig = allPayrollHistory.find(r => r.empId === payrollData.empId && r.yearMonth === payrollData.yearMonth) || {};
+            payrollData.dailyWage = orig.dailyWage;
+            payrollData.expectedDays = orig.expectedDays;
+            payrollData.actualDays = orig.actualDays;
+            payrollData.absentDays = orig.absentDays;
+            payrollData.leaveDetail = orig.leaveDetail || [];
+            payrollData.otDetail = orig.otDetail || [];
+            payrollData.annualLeaveQuota = (orig.annualLeaveTotal !== undefined) ? {
+                totalDays: orig.annualLeaveTotal, usedDays: orig.annualLeaveUsed, remainingDays: orig.annualLeaveRemaining
+            } : null;
+
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "savePayrollResult", lineUid: currentAdminLineUid, payrollData: payrollData })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === "success") {
+                    alert('薪資紀錄已更新，調整內容已記錄到「薪資調整紀錄」頁籤！');
+                    closePayrollEditModal();
+                    loadPayrollHistory();
+                } else { alert('儲存失敗：' + res.message); }
+            })
+            .catch(err => alert('連線錯誤：' + err));
+        }
+
+        function lockPayrollRecord(empId, yearMonth) {
+            if (!confirm(`確定要鎖定 ${yearMonth} ${empId} 的薪資紀錄嗎？鎖定後需先解鎖才能再修改。`)) return;
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "lockPayrollResult", lineUid: currentAdminLineUid, empId: empId, yearMonth: yearMonth })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === "success") { loadPayrollHistory(); }
+                else { alert('鎖定失敗：' + res.message); }
+            })
+            .catch(err => alert('連線錯誤：' + err));
+        }
+
+        function unlockPayrollRecord(empId, yearMonth) {
+            const reason = prompt('請輸入解鎖原因（將記錄到薪資調整紀錄）：');
+            if (reason === null) return; // 使用者取消
+            if (!reason.trim()) { alert('請填寫解鎖原因'); return; }
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "unlockPayrollResult", lineUid: currentAdminLineUid, empId: empId, yearMonth: yearMonth, reason: reason.trim() })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === "success") { loadPayrollHistory(); }
+                else { alert('解鎖失敗：' + res.message); }
+            })
+            .catch(err => alert('連線錯誤：' + err));
         }
 
         function exportPayrollHistoryCSV() {
             const rows = document.querySelectorAll('#payhist-table-body tr');
             if (!rows.length || rows[0].cells.length < 2) { alert('目前沒有可匯出的資料'); return; }
 
-            const headers = ['年月', '員工', '底薪', '曠職扣款', '請假扣款', '加班費', '應發總額', '計算時間', '計算人'];
+            const headers = ['年月', '員工', '底薪', '曠職扣款', '請假扣款', '加班費', '應發總額', '計算時間', '計算人', '鎖定狀態'];
             let csv = '﻿' + headers.join(',') + '\n';
             rows.forEach(row => {
-                const cells = Array.from(row.cells).map(td => `"${td.innerText.trim().replace(/"/g, '""')}"`);
+                // 最後一欄是操作按鈕，不納入匯出
+                const cells = Array.from(row.cells).slice(0, headers.length).map(td => `"${td.innerText.trim().replace(/"/g, '""')}"`);
                 csv += cells.join(',') + '\n';
             });
 
@@ -1138,6 +1383,55 @@
             const fname = `薪資歷史_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.csv`;
             a.href = url; a.download = fname; a.click();
             URL.revokeObjectURL(url);
+        }
+
+        // ===================== 薪資調整紀錄 =====================
+        let allPayrollAdjustmentLogs = [];
+
+        function loadPayrollAdjustmentLogs() {
+            const tbody = document.getElementById('padjlog-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-gray-400">載入中...</td></tr>`;
+            const yearMonth = document.getElementById('padjlog-filter-yearMonth') ? document.getElementById('padjlog-filter-yearMonth').value : '';
+            const empId = document.getElementById('padjlog-filter-emp') ? document.getElementById('padjlog-filter-emp').value : '';
+            let url = `${GAS_WEB_APP_URL}?action=getPayrollAdjustmentLogs&t=${new Date().getTime()}`;
+            if (yearMonth) url += `&yearMonth=${encodeURIComponent(yearMonth)}`;
+            if (empId) url += `&empId=${encodeURIComponent(empId)}`;
+
+            fetch(url).then(res => res.json()).then(res => {
+                if (res.status !== 'success') {
+                    tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-red-400">載入失敗：${res.message || '請稍後再試'}</td></tr>`;
+                    return;
+                }
+                allPayrollAdjustmentLogs = currentAdminBranch
+                    ? res.data.filter(l => l.branch === currentAdminBranch)
+                    : res.data;
+                renderPayrollAdjustmentLogTable();
+            }).catch(() => {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-red-400">載入失敗，請稍後再試</td></tr>`;
+            });
+        }
+
+        function renderPayrollAdjustmentLogTable() {
+            const tbody = document.getElementById('padjlog-table-body');
+            if (!tbody) return;
+            if (!allPayrollAdjustmentLogs.length) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-gray-400">查無調整紀錄</td></tr>`;
+                return;
+            }
+            const eventColor = { '編輯': 'bg-blue-100 text-blue-700', '鎖定': 'bg-gray-200 text-gray-700', '解鎖': 'bg-amber-100 text-amber-700' };
+            tbody.innerHTML = allPayrollAdjustmentLogs.map(l => `
+                <tr class="hover:bg-gray-50/80 transition-colors">
+                    <td class="p-3 text-xs text-gray-500">${l.timestamp}</td>
+                    <td class="p-3 text-sm">${l.yearMonth}</td>
+                    <td class="p-3 text-sm">${l.name}<br><span class="text-xs text-gray-400 font-mono">${l.empId}</span></td>
+                    <td class="p-3 text-sm text-gray-600">${l.branch || '-'}</td>
+                    <td class="p-3"><span class="${eventColor[l.eventType] || 'bg-gray-100 text-gray-600'} px-2 py-0.5 rounded-md text-xs font-medium">${l.eventType}</span></td>
+                    <td class="p-3 text-sm">${l.field ? `${l.field}：${l.oldValue} → ${l.newValue}` : '-'}</td>
+                    <td class="p-3 text-xs text-gray-600">${l.reason || '-'}</td>
+                    <td class="p-3 text-xs text-gray-400">${l.operator}</td>
+                </tr>
+            `).join('');
         }
 
         // ===================== 特休查詢 =====================
