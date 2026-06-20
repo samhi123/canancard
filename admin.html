@@ -70,6 +70,15 @@
             <button onclick="switchTab('report-section')" id="btn-report-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 <i class="fa-solid fa-business-time mr-1"></i>歷史出勤報表
             </button>
+            <button onclick="switchTab('payroll-section')" id="btn-payroll-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                <i class="fa-solid fa-calculator mr-1"></i>薪資計算
+            </button>
+            <button onclick="switchTab('leave-settings-section')" id="btn-leave-settings-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                <i class="fa-solid fa-sliders mr-1"></i>假別設定
+            </button>
+            <button onclick="switchTab('payroll-history-section')" id="btn-payroll-history-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                <i class="fa-solid fa-file-invoice-dollar mr-1"></i>薪資歷史查詢
+            </button>
         </div>
 
         <div id="pending-section" class="tab-content bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
@@ -175,6 +184,121 @@
                 </table>
             </div>
         </div>
+
+        <div id="payroll-section" class="tab-content hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+            <h2 class="text-lg font-bold text-gray-700 mb-4">薪資試算</h2>
+            <div class="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-xl items-center">
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">年月</label>
+                    <input type="month" id="payroll-yearMonth" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">員工</label>
+                    <select id="payroll-empId" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[140px]">
+                        <option value="">請選擇員工</option>
+                    </select>
+                </div>
+                <button onclick="previewPayroll()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
+                    <i class="fa-solid fa-magnifying-glass-dollar mr-1"></i>試算
+                </button>
+            </div>
+            <div id="payroll-preview" class="hidden">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 text-sm">
+                    <div class="bg-gray-50 rounded-xl p-3"><p class="text-xs text-gray-400">底薪</p><p id="pv-salary" class="font-bold text-gray-800"></p></div>
+                    <div class="bg-gray-50 rounded-xl p-3"><p class="text-xs text-gray-400">日薪</p><p id="pv-dailyWage" class="font-bold text-gray-800"></p></div>
+                    <div class="bg-gray-50 rounded-xl p-3"><p class="text-xs text-gray-400">應出勤/實際出勤</p><p id="pv-days" class="font-bold text-gray-800"></p></div>
+                    <div class="bg-red-50 rounded-xl p-3"><p class="text-xs text-gray-400">曠職天數/扣款</p><p id="pv-absent" class="font-bold text-red-600"></p></div>
+                </div>
+                <div class="mb-4">
+                    <h3 class="text-sm font-bold text-gray-600 mb-2">請假明細（扣薪）</h3>
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead><tr class="bg-gray-50 text-gray-500 text-xs"><th class="p-2">假別</th><th class="p-2">天數</th><th class="p-2">扣薪比例</th><th class="p-2">扣款金額</th></tr></thead>
+                        <tbody id="pv-leave-detail"></tbody>
+                    </table>
+                    <p class="text-right text-sm mt-1">請假扣款合計：<span id="pv-leaveDeduction" class="font-bold text-red-600"></span></p>
+                </div>
+                <div class="mb-4">
+                    <h3 class="text-sm font-bold text-gray-600 mb-2">加班明細（加薪）</h3>
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead><tr class="bg-gray-50 text-gray-500 text-xs"><th class="p-2">加班類型</th><th class="p-2">時數</th><th class="p-2">加班費</th></tr></thead>
+                        <tbody id="pv-ot-detail"></tbody>
+                    </table>
+                    <p class="text-right text-sm mt-1">加班費合計：<span id="pv-otPay" class="font-bold text-emerald-600"></span></p>
+                </div>
+                <div class="mb-4 bg-indigo-50 rounded-xl p-3 text-sm">
+                    <p class="font-bold text-gray-700 mb-1">特休額度（統計用，不折算工資）</p>
+                    <p id="pv-annual"></p>
+                </div>
+                <div class="flex justify-between items-center border-t border-gray-200 pt-3">
+                    <p class="text-lg font-bold text-gray-800">應發總額：<span id="pv-totalPay" class="text-indigo-600"></span></p>
+                    <button onclick="confirmSavePayroll()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all">
+                        <i class="fa-solid fa-floppy-disk mr-1"></i>確認入帳
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="leave-settings-section" class="tab-content hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-700">假別扣薪比例設定</h2>
+                <button onclick="loadLeaveSettings()" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg font-medium transition-all">
+                    <i class="fa-solid fa-rotate mr-1"></i>重新整理
+                </button>
+            </div>
+            <p class="text-xs text-gray-400 mb-3">扣薪比例 0% 表示該假別全薪；100% 表示完全不給薪。可自行調整後按「儲存設定」。</p>
+            <table class="w-full text-left border-collapse text-sm max-w-md">
+                <thead><tr class="bg-gray-50 text-gray-500 text-xs"><th class="p-2">假別名稱</th><th class="p-2">扣薪比例(%)</th></tr></thead>
+                <tbody id="leave-settings-table-body"></tbody>
+            </table>
+            <button onclick="saveLeaveSettingsForm()" class="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all">
+                <i class="fa-solid fa-floppy-disk mr-1"></i>儲存設定
+            </button>
+        </div>
+
+        <div id="payroll-history-section" class="tab-content hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-700">薪資歷史查詢</h2>
+                <button onclick="loadPayrollHistory()" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg font-medium transition-all">
+                    <i class="fa-solid fa-rotate mr-1"></i>重新整理
+                </button>
+            </div>
+            <div class="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-xl">
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">年月</label>
+                    <input type="month" id="payhist-filter-yearMonth" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">員工</label>
+                    <select id="payhist-filter-emp" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[120px]">
+                        <option value="">全部員工</option>
+                    </select>
+                </div>
+                <button onclick="loadPayrollHistory()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
+                    <i class="fa-solid fa-magnifying-glass mr-1"></i>篩選
+                </button>
+                <button onclick="exportPayrollHistoryCSV()" class="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
+                    <i class="fa-solid fa-file-csv mr-1"></i>匯出 CSV
+                </button>
+            </div>
+            <div class="table-container">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-sm font-semibold border-b border-gray-100">
+                            <th class="p-3">年月</th>
+                            <th class="p-3">員工</th>
+                            <th class="p-3">底薪</th>
+                            <th class="p-3">曠職扣款</th>
+                            <th class="p-3">請假扣款</th>
+                            <th class="p-3">加班費</th>
+                            <th class="p-3">應發總額</th>
+                            <th class="p-3">計算時間</th>
+                            <th class="p-3">計算人</th>
+                        </tr>
+                    </thead>
+                    <tbody id="payhist-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <div id="hr-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
@@ -267,7 +391,7 @@
     </div>
 
     <script>
-        const APP_VERSION = "v1.0.6";
+        const APP_VERSION = "v1.0.7";
         const GAS_WEB_APP_URL = SYSTEM_ENV.GAS_WEB_APP_URL;
         const LIFF_ID = SYSTEM_ENV.LIFF_ID;
         let currentAdminLineUid = "";
@@ -474,10 +598,24 @@
                             `;
                         });
 
+                        // 同步更新薪資計算/薪資歷史查詢的員工下拉選單（以同所別員工為主）
+                        const payrollEmpSelect = document.getElementById('payroll-empId');
+                        const payhistEmpSelect = document.getElementById('payhist-filter-emp');
+                        if (payrollEmpSelect) {
+                            payrollEmpSelect.innerHTML = '<option value="">請選擇員工</option>';
+                            payhistEmpSelect.innerHTML = '<option value="">全部員工</option>';
+                            visible.slice().sort((a, b) => a.empId.localeCompare(b.empId)).forEach(emp => {
+                                const opt = `<option value="${emp.empId}">${emp.name}（${emp.empId}）</option>`;
+                                payrollEmpSelect.innerHTML += opt;
+                                payhistEmpSelect.innerHTML += opt;
+                            });
+                        }
+
                         // 初次登入時，等 hrProfilesData 建立後再載入其他區塊（確保 branch 過濾可查到資料）
                         if (chainLoad) {
                             loadPendingForms();
                             loadAttendanceReports();
+                            loadLeaveSettings();
                         }
                     }
                 });
@@ -779,6 +917,184 @@
             const a    = document.createElement('a');
             const now  = new Date();
             const fname = `出勤紀錄_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.csv`;
+            a.href = url; a.download = fname; a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ===================== 假別設定 =====================
+        function loadLeaveSettings() {
+            const tbody = document.getElementById('leave-settings-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = `<tr><td colspan="2" class="p-2 text-center text-gray-400">載入中...</td></tr>`;
+            const url = `${GAS_WEB_APP_URL}?action=getLeaveSettings&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
+            fetch(url).then(res => res.json()).then(res => {
+                tbody.innerHTML = "";
+                if (res.status !== "success" || !res.data.length) {
+                    tbody.innerHTML = `<tr><td colspan="2" class="p-2 text-center text-gray-400">尚無設定資料</td></tr>`;
+                    return;
+                }
+                res.data.forEach((s, idx) => {
+                    tbody.innerHTML += `
+                        <tr class="border-b border-gray-50">
+                            <td class="p-2">
+                                <input type="text" class="leave-setting-name border border-gray-200 rounded-lg px-2 py-1 text-sm w-full" value="${s.name}" data-idx="${idx}">
+                            </td>
+                            <td class="p-2">
+                                <input type="number" min="0" max="100" step="1" class="leave-setting-percent border border-gray-200 rounded-lg px-2 py-1 text-sm w-24" value="${s.percent}" data-idx="${idx}">
+                            </td>
+                        </tr>`;
+                });
+            }).catch(err => {
+                tbody.innerHTML = `<tr><td colspan="2" class="p-2 text-center text-red-400">載入失敗：${err}</td></tr>`;
+            });
+        }
+
+        function saveLeaveSettingsForm() {
+            const names = document.querySelectorAll('.leave-setting-name');
+            const percents = document.querySelectorAll('.leave-setting-percent');
+            const settings = [];
+            names.forEach((nameEl, i) => {
+                const name = nameEl.value.trim();
+                if (!name) return;
+                settings.push({ name: name, percent: Number(percents[i].value) || 0 });
+            });
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "saveLeaveSettings", lineUid: currentAdminLineUid, settings: settings })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === "success") {
+                    alert("假別扣薪比例設定已儲存！");
+                    loadLeaveSettings();
+                } else { alert("儲存失敗：" + res.message); }
+            })
+            .catch(err => alert("連線錯誤：" + err));
+        }
+
+        // ===================== 薪資計算 =====================
+        let lastPayrollPreview = null; // 暫存試算結果，供「確認入帳」使用
+
+        function previewPayroll() {
+            const yearMonth = document.getElementById('payroll-yearMonth').value; // yyyy-MM
+            const empId = document.getElementById('payroll-empId').value;
+            if (!yearMonth || !empId) { alert('請選擇年月與員工'); return; }
+
+            const url = `${GAS_WEB_APP_URL}?action=calcPayroll&lineUid=${encodeURIComponent(currentAdminLineUid)}&empId=${encodeURIComponent(empId)}&yearMonth=${encodeURIComponent(yearMonth)}&_t=${new Date().getTime()}`;
+            fetch(url).then(res => res.json()).then(res => {
+                if (res.status !== "success") { alert('試算失敗：' + res.message); return; }
+                const d = res.data;
+                lastPayrollPreview = d;
+
+                document.getElementById('payroll-preview').classList.remove('hidden');
+                document.getElementById('pv-salary').innerText = d.salary;
+                document.getElementById('pv-dailyWage').innerText = d.dailyWage;
+                document.getElementById('pv-days').innerText = `${d.expectedDays} / ${d.actualDays} 天`;
+                document.getElementById('pv-absent').innerText = `${d.absentDays} 天 / -${d.absentDeduction}`;
+
+                const leaveBody = document.getElementById('pv-leave-detail');
+                leaveBody.innerHTML = d.leaveDetail.length
+                    ? d.leaveDetail.map(l => `<tr class="border-b border-gray-50"><td class="p-2">${l.subType}</td><td class="p-2">${l.days}</td><td class="p-2">${l.percent}%</td><td class="p-2 text-red-600">-${l.deduction}</td></tr>`).join('')
+                    : `<tr><td colspan="4" class="p-2 text-center text-gray-400">本月無已核准請假</td></tr>`;
+                document.getElementById('pv-leaveDeduction').innerText = `-${d.leaveDeduction}`;
+
+                const otBody = document.getElementById('pv-ot-detail');
+                otBody.innerHTML = d.otDetail.length
+                    ? d.otDetail.map(o => `<tr class="border-b border-gray-50"><td class="p-2">${o.otType}</td><td class="p-2">${o.hours}</td><td class="p-2 text-emerald-600">+${o.pay}</td></tr>`).join('')
+                    : `<tr><td colspan="3" class="p-2 text-center text-gray-400">本月無已核准加班</td></tr>`;
+                document.getElementById('pv-otPay').innerText = `+${d.otPay}`;
+
+                document.getElementById('pv-annual').innerText = d.annualLeaveQuota
+                    ? `總額 ${d.annualLeaveQuota.totalDays} 天｜已用 ${d.annualLeaveQuota.usedDays} 天｜剩餘 ${d.annualLeaveQuota.remainingDays} 天（週期：${d.annualLeaveQuota.cycleStart} ~ ${d.annualLeaveQuota.cycleEnd}）`
+                    : '尚無到職日資料，無法計算特休額度';
+
+                document.getElementById('pv-totalPay').innerText = d.totalPay;
+            }).catch(err => alert('連線錯誤：' + err));
+        }
+
+        function confirmSavePayroll() {
+            if (!lastPayrollPreview) { alert('請先完成試算'); return; }
+            const d = lastPayrollPreview;
+            if (!confirm(`確定要將 ${d.yearMonth} ${d.name}（${d.empId}）的薪資計算結果存入薪資歷史紀錄嗎？\n應發總額：${d.totalPay}`)) return;
+
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "savePayrollResult", lineUid: currentAdminLineUid, payrollData: d })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === "success") {
+                    alert('薪資計算結果已儲存！');
+                } else { alert('儲存失敗：' + res.message); }
+            })
+            .catch(err => alert('連線錯誤：' + err));
+        }
+
+        // ===================== 薪資歷史查詢 =====================
+        let allPayrollHistory = [];
+
+        function loadPayrollHistory() {
+            const tbody = document.getElementById('payhist-table-body');
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
+            const yearMonth = document.getElementById('payhist-filter-yearMonth').value;
+            const empId = document.getElementById('payhist-filter-emp').value;
+            let url = `${GAS_WEB_APP_URL}?action=getPayrollReports&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
+            if (yearMonth) url += `&yearMonth=${encodeURIComponent(yearMonth)}`;
+            if (empId) url += `&empId=${encodeURIComponent(empId)}`;
+
+            fetch(url).then(res => res.json()).then(res => {
+                if (res.status !== "success") {
+                    tbody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-red-400">載入失敗：${res.message || ''}</td></tr>`;
+                    return;
+                }
+                allPayrollHistory = currentAdminBranch
+                    ? res.data.filter(p => p.branch === currentAdminBranch)
+                    : res.data;
+                renderPayrollHistoryTable(allPayrollHistory);
+            }).catch(err => {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-red-400">載入失敗：${err}</td></tr>`;
+            });
+        }
+
+        function renderPayrollHistoryTable(list) {
+            const tbody = document.getElementById('payhist-table-body');
+            tbody.innerHTML = "";
+            if (!list || !list.length) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center p-4 text-gray-400">無符合條件的薪資紀錄</td></tr>`;
+                return;
+            }
+            list.forEach(p => {
+                tbody.innerHTML += `
+                    <tr class="border-b border-gray-50">
+                        <td class="p-3">${p.yearMonth}</td>
+                        <td class="p-3">${p.name}<br><span class="text-xs text-gray-400">${p.empId}</span></td>
+                        <td class="p-3">${p.salary}</td>
+                        <td class="p-3 text-red-600">-${p.absentDeduction}</td>
+                        <td class="p-3 text-red-600">-${p.leaveDeduction}</td>
+                        <td class="p-3 text-emerald-600">+${p.otPay}</td>
+                        <td class="p-3 font-bold">${p.totalPay}</td>
+                        <td class="p-3 text-xs text-gray-400">${p.calcTime}</td>
+                        <td class="p-3 text-xs text-gray-400">${p.calcBy}</td>
+                    </tr>`;
+            });
+        }
+
+        function exportPayrollHistoryCSV() {
+            const rows = document.querySelectorAll('#payhist-table-body tr');
+            if (!rows.length || rows[0].cells.length < 2) { alert('目前沒有可匯出的資料'); return; }
+
+            const headers = ['年月', '員工', '底薪', '曠職扣款', '請假扣款', '加班費', '應發總額', '計算時間', '計算人'];
+            let csv = '﻿' + headers.join(',') + '\n';
+            rows.forEach(row => {
+                const cells = Array.from(row.cells).map(td => `"${td.innerText.trim().replace(/"/g, '""')}"`);
+                csv += cells.join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const now = new Date();
+            const fname = `薪資歷史_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.csv`;
             a.href = url; a.download = fname; a.click();
             URL.revokeObjectURL(url);
         }
