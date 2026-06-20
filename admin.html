@@ -1207,6 +1207,28 @@
             .catch(err => alert('連線錯誤：' + err));
         }
 
+        // 將 "yyyy-MM" 轉成民國年月，例如 "2026-06" → "115年06月"
+        function formatYearMonthROC(ym) {
+            const parts = (ym || '').split('-');
+            if (parts.length === 2) {
+                const rocYear = parseInt(parts[0]) - 1911;
+                return `${rocYear}年${parts[1]}月`;
+            }
+            return ym || '';
+        }
+
+        // 將 "yyyy/MM/dd HH:mm:ss" 轉成民國年月日，例如 "2026/06/20 14:30:05" → "115年6月20日 14:30:05"
+        function formatDateTimeROC(dtStr) {
+            if (!dtStr) return '';
+            const sp = dtStr.split(' ');
+            const dp = (sp[0] || '').split('/');
+            if (dp.length === 3) {
+                const rocYear = parseInt(dp[0]) - 1911;
+                return `${rocYear}年${parseInt(dp[1])}月${parseInt(dp[2])}日${sp[1] ? ' ' + sp[1] : ''}`;
+            }
+            return dtStr;
+        }
+
         // ===================== 薪資歷史查詢 =====================
         let allPayrollHistory = [];
 
@@ -1247,16 +1269,16 @@
                     : `<span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md text-xs font-medium"><i class="fa-solid fa-lock-open mr-1"></i>未鎖定</span>`;
                 tbody.innerHTML += `
                     <tr class="border-b border-gray-50">
-                        <td class="p-3">${p.yearMonth}</td>
+                        <td class="p-3">${formatYearMonthROC(p.yearMonth)}</td>
                         <td class="p-3">${p.name}<br><span class="text-xs text-gray-400">${p.empId}</span></td>
                         <td class="p-3">${p.salary}</td>
                         <td class="p-3 text-red-600">-${p.absentDeduction}</td>
                         <td class="p-3 text-red-600">-${p.leaveDeduction}</td>
                         <td class="p-3 text-emerald-600">+${p.otPay}</td>
                         <td class="p-3 font-bold">${p.totalPay}</td>
-                        <td class="p-3 text-xs text-gray-400">${p.calcTime}</td>
+                        <td class="p-3 text-xs text-gray-400">${formatDateTimeROC(p.calcTime)}</td>
                         <td class="p-3 text-xs text-gray-400">${p.calcBy}</td>
-                        <td class="p-3">${lockBadge}<br><span class="text-[10px] text-gray-400">${p.lastModifiedBy || ''} ${p.lastModifiedTime || ''}</span></td>
+                        <td class="p-3">${lockBadge}<br><span class="text-[10px] text-gray-400">${p.lastModifiedBy || ''} ${p.lastModifiedTime ? formatDateTimeROC(p.lastModifiedTime) : ''}</span></td>
                         <td class="p-3 text-center whitespace-nowrap">
                             <button onclick='openPayrollEditModal(${JSON.stringify(p)})' ${locked ? 'disabled' : ''} class="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1.5 rounded-lg text-xs font-medium mr-1">
                                 <i class="fa-solid fa-pen mr-1"></i>編輯
@@ -1422,8 +1444,8 @@
             const eventColor = { '編輯': 'bg-blue-100 text-blue-700', '鎖定': 'bg-gray-200 text-gray-700', '解鎖': 'bg-amber-100 text-amber-700' };
             tbody.innerHTML = allPayrollAdjustmentLogs.map(l => `
                 <tr class="hover:bg-gray-50/80 transition-colors">
-                    <td class="p-3 text-xs text-gray-500">${l.timestamp}</td>
-                    <td class="p-3 text-sm">${l.yearMonth}</td>
+                    <td class="p-3 text-xs text-gray-500">${formatDateTimeROC(l.timestamp)}</td>
+                    <td class="p-3 text-sm">${formatYearMonthROC(l.yearMonth)}</td>
                     <td class="p-3 text-sm">${l.name}<br><span class="text-xs text-gray-400 font-mono">${l.empId}</span></td>
                     <td class="p-3 text-sm text-gray-600">${l.branch || '-'}</td>
                     <td class="p-3"><span class="${eventColor[l.eventType] || 'bg-gray-100 text-gray-600'} px-2 py-0.5 rounded-md text-xs font-medium">${l.eventType}</span></td>
