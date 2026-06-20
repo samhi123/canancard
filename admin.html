@@ -1220,11 +1220,21 @@
         // 將 "yyyy/MM/dd HH:mm:ss" 轉成民國年月日，例如 "2026/06/20 14:30:05" → "115年6月20日 14:30:05"
         function formatDateTimeROC(dtStr) {
             if (!dtStr) return '';
+            dtStr = String(dtStr).replace(/^'/, '').trim();
+            // 標準格式：yyyy/MM/dd HH:mm:ss
             const sp = dtStr.split(' ');
             const dp = (sp[0] || '').split('/');
-            if (dp.length === 3) {
+            if (dp.length === 3 && sp.length <= 2) {
                 const rocYear = parseInt(dp[0]) - 1911;
-                return `${rocYear}年${parseInt(dp[1])}月${parseInt(dp[2])}日${sp[1] ? ' ' + sp[1] : ''}`;
+                const timePart = sp[1] ? sp[1].split(':').slice(0, 2).join(':') : '';
+                return `${rocYear}年${parseInt(dp[1])}月${parseInt(dp[2])}日${timePart ? ' ' + timePart : ''}`;
+            }
+            // 容錯：舊資料若因 Sheets 自動轉型而變成 ISO 字串或 JS Date.toString() 格式，改用瀏覽器本地時區解析
+            const d = new Date(dtStr);
+            if (!isNaN(d.getTime())) {
+                const rocYear = d.getFullYear() - 1911;
+                const pad = n => String(n).padStart(2, '0');
+                return `${rocYear}年${d.getMonth() + 1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
             }
             return dtStr;
         }
@@ -1287,6 +1297,9 @@
                                 ? `<button onclick="unlockPayrollRecord('${p.empId}','${p.yearMonth}')" class="text-amber-600 bg-amber-50 hover:bg-amber-100 px-2.5 py-1.5 rounded-lg text-xs font-medium"><i class="fa-solid fa-lock-open mr-1"></i>解鎖</button>`
                                 : `<button onclick="lockPayrollRecord('${p.empId}','${p.yearMonth}')" class="text-gray-600 bg-gray-100 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg text-xs font-medium"><i class="fa-solid fa-lock mr-1"></i>鎖定</button>`
                             }
+                            <button onclick="deletePayrollRecord('${p.empId}','${p.yearMonth}')" ${(locked || p.everLocked) ? 'disabled title="已鎖定或曾鎖定過，無法刪除"' : ''} class="text-red-600 bg-red-50 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed px-2.5 py-1.5 rounded-lg text-xs font-medium">
+                                <i class="fa-solid fa-trash-can mr-1"></i>刪除
+                            </button>
                         </td>
                     </tr>`;
             });
@@ -1386,6 +1399,24 @@
             .catch(err => alert('連線錯誤：' + err));
         }
 
+        // 刪除薪資紀錄：僅限「從未鎖定過」的紀錄（後端會再次驗證，避免前端資料過舊造成誤刪）
+        function deletePayrollRecord(empId, yearMonth) {
+            const reason = prompt('請輸入刪除原因（將記錄到薪資調整紀錄）：');
+            if (reason === null) return; // 使用者取消
+            if (!reason.trim()) { alert('請填寫刪除原因'); return; }
+            if (!confirm(`確定要刪除 ${yearMonth} ${empId} 的薪資紀錄嗎？此動作無法復原。`)) return;
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "deletePayrollResult", lineUid: currentAdminLineUid, empId: empId, yearMonth: yearMonth, reason: reason.trim() })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === "success") { loadPayrollHistory(); loadPayrollAdjustmentLogs(); }
+                else { alert('刪除失敗：' + res.message); }
+            })
+            .catch(err => alert('連線錯誤：' + err));
+        }
+
         function exportPayrollHistoryCSV() {
             const rows = document.querySelectorAll('#payhist-table-body tr');
             if (!rows.length || rows[0].cells.length < 2) { alert('目前沒有可匯出的資料'); return; }
@@ -1441,7 +1472,7 @@
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center p-6 text-gray-400">查無調整紀錄</td></tr>`;
                 return;
             }
-            const eventColor = { '編輯': 'bg-blue-100 text-blue-700', '鎖定': 'bg-gray-200 text-gray-700', '解鎖': 'bg-amber-100 text-amber-700' };
+            const eventColor = { '編輯': 'bg-blue-100 text-blue-700', '鎖定': 'bg-gray-200 text-gray-700', '解鎖': 'bg-amber-100 text-amber-700', '刪除': 'bg-red-100 text-red-700' };
             tbody.innerHTML = allPayrollAdjustmentLogs.map(l => `
                 <tr class="hover:bg-gray-50/80 transition-colors">
                     <td class="p-3 text-xs text-gray-500">${formatDateTimeROC(l.timestamp)}</td>
