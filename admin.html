@@ -79,6 +79,9 @@
             <button onclick="switchTab('payroll-history-section')" id="btn-payroll-history-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 <i class="fa-solid fa-file-invoice-dollar mr-1"></i>薪資歷史查詢
             </button>
+            <button onclick="switchTab('annual-leave-section'); loadAnnualLeaveQuotas();" id="btn-annual-leave-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                <i class="fa-solid fa-umbrella-beach mr-1"></i>特休查詢
+            </button>
         </div>
 
         <div id="pending-section" class="tab-content bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
@@ -296,6 +299,40 @@
                         </tr>
                     </thead>
                     <tbody id="payhist-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="annual-leave-section" class="tab-content hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-700">特休查詢</h2>
+                <button onclick="loadAnnualLeaveQuotas()" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg font-medium transition-all">
+                    <i class="fa-solid fa-rotate mr-1"></i>重新整理
+                </button>
+            </div>
+            <p class="text-xs text-gray-400 mb-3">特休天數以「到職日週年制」計算，並以半天（0.5天）為單位顯示；預設列出全部在職員工，亦可從下方選單篩選單一員工查看明細。</p>
+            <div class="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-xl">
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">員工</label>
+                    <select id="aleave-filter-emp" onchange="renderAnnualLeaveTable()" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[140px]">
+                        <option value="">全部員工</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-container">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-sm font-semibold border-b border-gray-100">
+                            <th class="p-3">工號/姓名</th>
+                            <th class="p-3">所別</th>
+                            <th class="p-3">到職日</th>
+                            <th class="p-3">特休週期</th>
+                            <th class="p-3 text-center">特休總天數</th>
+                            <th class="p-3 text-center">已使用</th>
+                            <th class="p-3 text-center">剩餘</th>
+                        </tr>
+                    </thead>
+                    <tbody id="aleave-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
                 </table>
             </div>
         </div>
@@ -601,13 +638,16 @@
                         // 同步更新薪資計算/薪資歷史查詢的員工下拉選單（以同所別員工為主）
                         const payrollEmpSelect = document.getElementById('payroll-empId');
                         const payhistEmpSelect = document.getElementById('payhist-filter-emp');
+                        const aleaveEmpSelect  = document.getElementById('aleave-filter-emp');
                         if (payrollEmpSelect) {
                             payrollEmpSelect.innerHTML = '<option value="">請選擇員工</option>';
                             payhistEmpSelect.innerHTML = '<option value="">全部員工</option>';
+                            if (aleaveEmpSelect) aleaveEmpSelect.innerHTML = '<option value="">全部員工</option>';
                             visible.slice().sort((a, b) => a.empId.localeCompare(b.empId)).forEach(emp => {
                                 const opt = `<option value="${emp.empId}">${emp.name}（${emp.empId}）</option>`;
                                 payrollEmpSelect.innerHTML += opt;
                                 payhistEmpSelect.innerHTML += opt;
+                                if (aleaveEmpSelect) aleaveEmpSelect.innerHTML += opt;
                             });
                         }
 
@@ -616,6 +656,7 @@
                             loadPendingForms();
                             loadAttendanceReports();
                             loadLeaveSettings();
+                            loadAnnualLeaveQuotas();
                         }
                     }
                 });
@@ -1097,6 +1138,54 @@
             const fname = `薪資歷史_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.csv`;
             a.href = url; a.download = fname; a.click();
             URL.revokeObjectURL(url);
+        }
+
+        // ===================== 特休查詢 =====================
+        let allAnnualLeaveQuotas = [];
+
+        function loadAnnualLeaveQuotas() {
+            const tbody = document.getElementById('aleave-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-gray-400">載入中...</td></tr>`;
+            const url = `${GAS_WEB_APP_URL}?action=getAllLeaveQuotas&t=${new Date().getTime()}`;
+            fetch(url).then(res => res.json()).then(res => {
+                if (res.status !== 'success') {
+                    tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-red-400">載入失敗：${res.message || '請稍後再試'}</td></tr>`;
+                    return;
+                }
+                // 依所別過濾（無所別的管理員顯示全部），與其他頁籤的篩選邏輯一致
+                allAnnualLeaveQuotas = currentAdminBranch
+                    ? res.data.filter(e => e.branch === currentAdminBranch)
+                    : res.data;
+                renderAnnualLeaveTable();
+            }).catch(() => {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-red-400">載入失敗，請稍後再試</td></tr>`;
+            });
+        }
+
+        function renderAnnualLeaveTable() {
+            const tbody = document.getElementById('aleave-table-body');
+            if (!tbody) return;
+            const filterEmpEl = document.getElementById('aleave-filter-emp');
+            const filterEmp = filterEmpEl ? filterEmpEl.value : '';
+            const list = filterEmp ? allAnnualLeaveQuotas.filter(e => e.empId === filterEmp) : allAnnualLeaveQuotas;
+
+            if (!list.length) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-gray-400">查無資料</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = list.map(e => `
+                <tr class="hover:bg-gray-50/80 transition-colors">
+                    <td class="p-3 font-semibold text-gray-800">${e.name}<br><span class="text-xs text-gray-400 font-mono">${e.empId}</span></td>
+                    <td class="p-3 text-sm text-gray-600">${e.branch || '-'}</td>
+                    <td class="p-3 text-sm text-gray-600">${e.arrivalDate}</td>
+                    <td class="p-3 text-xs text-gray-500">${e.cycleStart} ～ ${e.cycleEnd}</td>
+                    <td class="p-3 text-center font-bold text-indigo-600">${e.totalDays}</td>
+                    <td class="p-3 text-center text-gray-600">${e.usedDays}</td>
+                    <td class="p-3 text-center font-bold ${e.remainingDays <= 0 ? 'text-red-500' : 'text-emerald-600'}">${e.remainingDays}</td>
+                </tr>
+            `).join('');
         }
 
         function checkEmpIdDuplicate() {
