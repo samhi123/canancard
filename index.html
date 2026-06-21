@@ -119,15 +119,22 @@
             <div id="leave-type-block">
                 <label class="block text-sm font-bold text-gray-700 mb-1">假別</label>
                 <select id="form-sub-type" onchange="onLeaveSubTypeChange()" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
-                    <option value="事假">事假</option>
+                    <option value="特休假">特休假</option>
+                    <option value="婚假">婚假</option>
+                    <option value="喪假">喪假</option>
+                    <option value="公假">公假</option>
+                    <option value="產假">產假</option>
+                    <option value="產檢假">產檢假</option>
                     <option value="病假">病假</option>
-                    <option value="特休">特休</option>
-                    <option value="婚假/喪假">婚假/喪假</option>
+                    <option value="生理假">生理假</option>
+                    <option value="事假">事假</option>
+                    <option value="家庭照顧假">家庭照顧假</option>
                 </select>
                 <div id="annual-leave-info" class="hidden mt-2 bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2.5 text-xs text-indigo-700 flex justify-between">
                     <span>特休天數：<span id="annual-leave-total" class="font-bold">--</span> 天</span>
                     <span>剩餘特休天數：<span id="annual-leave-remaining" class="font-bold">--</span> 天</span>
                 </div>
+                <p id="leave-unit-hint" class="hidden mt-2 text-xs text-gray-500"></p>
             </div>
 
             <div id="ot-type-block" class="hidden">
@@ -213,6 +220,7 @@
         // 直接從已載入的 env.js (SYSTEM_ENV) 讀取設定，不再 fetch env.txt
         let GAS_WEB_APP_URL = (typeof SYSTEM_ENV !== "undefined") ? SYSTEM_ENV.GAS_WEB_APP_URL : "";
         let currentFormType = 'leave';
+        let leaveSettingsCache = {}; // { 假別名稱: { payType, minUnitHours } }，登入後快取一次，供請假最小單位驗證使用
 
         // 預設員工資訊（當 LINE LIFF 順利初始化後，會自動被真實 LINE 個資覆蓋）
         const currentEmployee = {
@@ -350,20 +358,52 @@
                 branchEl.style.display = 'none';
             }
             loadTodayAttendance(); // 登入後立即讀取今日打卡狀態
-            onLeaveSubTypeChange(); // 若預設假別即為特休，登入後立即顯示特休額度
+            loadLeaveSettingsCache(); // 登入後快取一次假別設定（薪資給付方式/最小單位），供請假表單驗證使用
+            onLeaveSubTypeChange(); // 若預設假別即為特休假，登入後立即顯示特休額度
         }
 
-        // 假別下拉選單變動時：若選擇「特休」則顯示並讀取特休額度資訊，否則隱藏
+        // 讀取後台「假別設定」（假別/薪資給付方式/最小單位），快取於 leaveSettingsCache，供請假表單依最小單位驗證時數
+        function loadLeaveSettingsCache() {
+            if (!GAS_WEB_APP_URL) return;
+            fetch(`${GAS_WEB_APP_URL}?action=getLeaveSettings&_t=${new Date().getTime()}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status !== 'success') return;
+                    leaveSettingsCache = {};
+                    res.data.forEach(s => { leaveSettingsCache[s.name] = { payType: s.payType, minUnitHours: Number(s.minUnitHours) || 1 }; });
+                    updateLeaveUnitHint();
+                })
+                .catch(err => console.error("讀取假別設定失敗:", err));
+        }
+
+        // 假別下拉選單變動時：若選擇「特休假」則顯示並讀取特休額度資訊，否則隱藏；同時更新最小單位提示
         function onLeaveSubTypeChange() {
             const subTypeEl = document.getElementById('form-sub-type');
             const infoEl = document.getElementById('annual-leave-info');
             if (!subTypeEl || !infoEl) return;
-            if (subTypeEl.value === '特休') {
+            if (subTypeEl.value === '特休假') {
                 infoEl.classList.remove('hidden');
                 loadAnnualLeaveQuota();
             } else {
                 infoEl.classList.add('hidden');
             }
+            updateLeaveUnitHint();
+        }
+
+        // 依目前選擇的假別，從快取的假別設定取得最小單位(小時)，更新時數輸入框的 step 與提示文字
+        function updateLeaveUnitHint() {
+            const subTypeEl = document.getElementById('form-sub-type');
+            const hoursEl = document.getElementById('form-hours');
+            const hintEl = document.getElementById('leave-unit-hint');
+            if (!subTypeEl || !hoursEl || !hintEl || currentFormType !== 'leave') {
+                if (hintEl) hintEl.classList.add('hidden');
+                return;
+            }
+            const setting = leaveSettingsCache[subTypeEl.value];
+            const minUnit = setting ? setting.minUnitHours : 1;
+            hoursEl.step = minUnit;
+            hintEl.innerText = `請輸入 ${minUnit} 小時的倍數`;
+            hintEl.classList.remove('hidden');
         }
 
         // 讀取目前員工的特休額度（年度總額 / 剩餘），單位以半天為單位顯示
@@ -460,6 +500,8 @@
                 btnLeave.className = "py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition";
                 leaveBlock.classList.add('hidden');
                 otBlock.classList.remove('hidden');
+                document.getElementById('annual-leave-info').classList.add('hidden');
+                document.getElementById('leave-unit-hint').classList.add('hidden');
             }
         }
 
@@ -592,6 +634,15 @@
             if (!totalHours || Number(totalHours) <= 0) {
                 setFieldError('form-hours', true);
                 errors.push('請填寫「合計時數」且須大於 0');
+            } else if (currentFormType === 'leave') {
+                // 依後台「假別設定」的最小單位，檢查時數是否為其整數倍
+                const setting = leaveSettingsCache[subType];
+                const minUnit = setting ? setting.minUnitHours : 1;
+                const ratio = Number(totalHours) / minUnit;
+                if (Math.abs(ratio - Math.round(ratio)) > 1e-6) {
+                    setFieldError('form-hours', true);
+                    errors.push(`「${subType}」的請假時數須為 ${minUnit} 小時的倍數`);
+                }
             }
             if (!reason) {
                 setFieldError('form-reason', true);
