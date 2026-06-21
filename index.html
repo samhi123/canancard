@@ -402,7 +402,7 @@
             const setting = leaveSettingsCache[subTypeEl.value];
             const minUnit = setting ? setting.minUnitHours : 1;
             hoursEl.step = minUnit;
-            hintEl.innerText = `請輸入 ${minUnit} 小時的倍數`;
+            hintEl.innerText = `請假時數至少需 ${minUnit} 小時以上`;
             hintEl.classList.remove('hidden');
         }
 
@@ -635,13 +635,12 @@
                 setFieldError('form-hours', true);
                 errors.push('請填寫「合計時數」且須大於 0');
             } else if (currentFormType === 'leave') {
-                // 依後台「假別設定」的最小單位，檢查時數是否為其整數倍
+                // 依後台「假別設定」的最小單位，檢查時數是否達到最小門檻（須大於等於，非倍數限制）
                 const setting = leaveSettingsCache[subType];
                 const minUnit = setting ? setting.minUnitHours : 1;
-                const ratio = Number(totalHours) / minUnit;
-                if (Math.abs(ratio - Math.round(ratio)) > 1e-6) {
+                if (Number(totalHours) < minUnit) {
                     setFieldError('form-hours', true);
-                    errors.push(`「${subType}」的請假時數須為 ${minUnit} 小時的倍數`);
+                    errors.push(`「${subType}」的請假時數須大於等於 ${minUnit} 小時`);
                 }
             }
             if (!reason) {
