@@ -215,18 +215,23 @@
                         <p class="text-xs text-gray-400 mb-1">底薪</p>
                         <input type="number" id="pv-salary" class="w-full border border-gray-200 rounded-lg px-2 py-1 font-bold text-gray-800 bg-white">
                     </div>
-                    <div class="bg-gray-50 rounded-xl p-3"><p class="text-xs text-gray-400">日薪</p><p id="pv-dailyWage" class="font-bold text-gray-800"></p></div>
+                    <div class="bg-gray-50 rounded-xl p-3">
+                        <p class="text-xs text-gray-400">日薪</p>
+                        <p id="pv-dailyWage" class="font-bold text-gray-800"></p>
+                        <p id="pv-dailyWage-formula" class="text-[11px] text-gray-400 mt-0.5"></p>
+                    </div>
                     <div class="bg-gray-50 rounded-xl p-3"><p class="text-xs text-gray-400">應出勤/實際出勤</p><p id="pv-days" class="font-bold text-gray-800"></p></div>
                     <div class="bg-red-50 rounded-xl p-3">
                         <p class="text-xs text-gray-400 mb-1">曠職天數 / 扣款</p>
                         <p id="pv-absentDays" class="text-xs text-gray-500 mb-1"></p>
                         <input type="number" id="pv-absentDeduction" class="w-full border border-red-200 rounded-lg px-2 py-1 font-bold text-red-600 bg-white">
+                        <p id="pv-absentDeduction-formula" class="text-[11px] text-gray-400 mt-0.5"></p>
                     </div>
                 </div>
                 <div class="mb-4">
                     <h3 class="text-sm font-bold text-gray-600 mb-2">請假明細（扣薪）</h3>
                     <table class="w-full text-left border-collapse text-sm">
-                        <thead><tr class="bg-gray-50 text-gray-500 text-xs"><th class="p-2">假別</th><th class="p-2">天數</th><th class="p-2">扣薪比例</th><th class="p-2">扣款金額</th></tr></thead>
+                        <thead><tr class="bg-gray-50 text-gray-500 text-xs"><th class="p-2">假別</th><th class="p-2">天數</th><th class="p-2">扣薪比例</th><th class="p-2">扣款金額</th><th class="p-2">計算公式</th></tr></thead>
                         <tbody id="pv-leave-detail"></tbody>
                     </table>
                     <div class="flex justify-end items-center gap-2 mt-1">
@@ -237,7 +242,7 @@
                 <div class="mb-4">
                     <h3 class="text-sm font-bold text-gray-600 mb-2">加班明細（加薪）</h3>
                     <table class="w-full text-left border-collapse text-sm">
-                        <thead><tr class="bg-gray-50 text-gray-500 text-xs"><th class="p-2">加班類型</th><th class="p-2">時數</th><th class="p-2">加班費</th></tr></thead>
+                        <thead><tr class="bg-gray-50 text-gray-500 text-xs"><th class="p-2">加班類型</th><th class="p-2">時數</th><th class="p-2">加班費</th><th class="p-2">計算公式</th></tr></thead>
                         <tbody id="pv-ot-detail"></tbody>
                     </table>
                     <div class="flex justify-end items-center gap-2 mt-1">
@@ -1201,20 +1206,22 @@
                 document.getElementById('payroll-preview').classList.remove('hidden');
                 document.getElementById('pv-salary').value = d.salary;
                 document.getElementById('pv-dailyWage').innerText = d.dailyWage;
+                document.getElementById('pv-dailyWage-formula').innerText = d.dailyWageFormula || '';
                 document.getElementById('pv-days').innerText = `${d.expectedDays} / ${d.actualDays} 天`;
                 document.getElementById('pv-absentDays').innerText = `${d.absentDays} 天`;
                 document.getElementById('pv-absentDeduction').value = d.absentDeduction;
+                document.getElementById('pv-absentDeduction-formula').innerText = d.absentDeductionFormula || '';
 
                 const leaveBody = document.getElementById('pv-leave-detail');
                 leaveBody.innerHTML = d.leaveDetail.length
-                    ? d.leaveDetail.map(l => `<tr class="border-b border-gray-50"><td class="p-2">${l.subType}</td><td class="p-2">${l.days}</td><td class="p-2">${l.percent}%</td><td class="p-2 text-red-600">-${l.deduction}</td></tr>`).join('')
-                    : `<tr><td colspan="4" class="p-2 text-center text-gray-400">本月無已核准請假</td></tr>`;
+                    ? d.leaveDetail.map(l => `<tr class="border-b border-gray-50"><td class="p-2">${l.subType}</td><td class="p-2">${l.days}</td><td class="p-2">${l.percent}%</td><td class="p-2 text-red-600">-${l.deduction}</td><td class="p-2 text-[11px] text-gray-400">${l.formula || ''}</td></tr>`).join('')
+                    : `<tr><td colspan="5" class="p-2 text-center text-gray-400">本月無已核准請假（已自動連結「請假申請」工作表中已核准的紀錄）</td></tr>`;
                 document.getElementById('pv-leaveDeduction').value = d.leaveDeduction;
 
                 const otBody = document.getElementById('pv-ot-detail');
                 otBody.innerHTML = d.otDetail.length
-                    ? d.otDetail.map(o => `<tr class="border-b border-gray-50"><td class="p-2">${o.otType}</td><td class="p-2">${o.hours}</td><td class="p-2 text-emerald-600">+${o.pay}</td></tr>`).join('')
-                    : `<tr><td colspan="3" class="p-2 text-center text-gray-400">本月無已核准加班</td></tr>`;
+                    ? d.otDetail.map(o => `<tr class="border-b border-gray-50"><td class="p-2">${o.otType}</td><td class="p-2">${o.hours}</td><td class="p-2 text-emerald-600">+${o.pay}</td><td class="p-2 text-[11px] text-gray-400">${o.formula || ''}</td></tr>`).join('')
+                    : `<tr><td colspan="4" class="p-2 text-center text-gray-400">本月無已核准加班</td></tr>`;
                 document.getElementById('pv-otPay').value = d.otPay;
 
                 document.getElementById('pv-annual').innerText = d.annualLeaveQuota
