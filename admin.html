@@ -254,6 +254,15 @@
                     <p class="font-bold text-gray-700 mb-1">特休額度（統計用，不折算工資）</p>
                     <p id="pv-annual"></p>
                 </div>
+                <div id="pv-cashout-section" class="mb-4 bg-amber-50 rounded-xl p-3 text-sm hidden">
+                    <p class="font-bold text-gray-700 mb-1"><i class="fa-solid fa-coins mr-1 text-amber-500"></i>未休完特休換薪（到職週年當月適用）</p>
+                    <p id="pv-cashout-info" class="text-xs text-gray-500 mb-1"></p>
+                    <div class="flex justify-end items-center gap-2 mt-1">
+                        <label class="text-sm">換薪金額：</label>
+                        <input type="number" id="pv-cashOutAmount" class="w-32 border border-amber-200 rounded-lg px-2 py-1 text-right font-bold text-amber-600">
+                    </div>
+                    <p id="pv-cashout-formula" class="text-[11px] text-gray-400 mt-0.5 text-right"></p>
+                </div>
                 <div class="mb-4">
                     <label class="block text-xs text-gray-500 mb-1">調整原因（修改既有薪資紀錄時必填，系統會記錄修改人與時間）</label>
                     <input type="text" id="pv-reason" placeholder="例如：曠職天數計算有誤，補登請假單後重新調整" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-400">
@@ -342,6 +351,7 @@
                             <th class="p-3">曠職扣款</th>
                             <th class="p-3">請假扣款</th>
                             <th class="p-3">加班費</th>
+                            <th class="p-3">特休換薪</th>
                             <th class="p-3">應發總額</th>
                             <th class="p-3">計算時間</th>
                             <th class="p-3">計算人</th>
@@ -1228,18 +1238,31 @@
                     ? `總額 ${d.annualLeaveQuota.totalDays} 天｜已用 ${d.annualLeaveQuota.usedDays} 天｜剩餘 ${d.annualLeaveQuota.remainingDays} 天（週期：${d.annualLeaveQuota.cycleStart} ~ ${d.annualLeaveQuota.cycleEnd}）`
                     : '尚無到職日資料，無法計算特休額度';
 
+                const cashoutSection = document.getElementById('pv-cashout-section');
+                if (d.annualLeaveCashOut) {
+                    cashoutSection.classList.remove('hidden');
+                    const c = d.annualLeaveCashOut;
+                    document.getElementById('pv-cashout-info').innerText = `週年日：${c.anniversaryDate}｜屆滿週期：${c.cycleStart} ~ ${c.cycleEnd}｜總額 ${c.totalDays} 天｜已用 ${c.usedDays} 天｜剩餘 ${c.remainingDays} 天`;
+                    document.getElementById('pv-cashOutAmount').value = c.amount;
+                    document.getElementById('pv-cashout-formula').innerText = c.formula;
+                } else {
+                    cashoutSection.classList.add('hidden');
+                    document.getElementById('pv-cashOutAmount').value = 0;
+                }
+
                 document.getElementById('pv-totalPay').value = d.totalPay;
                 document.getElementById('pv-reason').value = '';
             }).catch(err => alert('連線錯誤：' + err));
         }
 
-        // 依目前「底薪 - 曠職扣款 - 請假扣款 + 加班費」重新加總應發總額（僅供參考，仍可手動覆寫）
+        // 依目前「底薪 - 曠職扣款 - 請假扣款 + 加班費 + 未休完特休換薪」重新加總應發總額（僅供參考，仍可手動覆寫）
         function recalcPayrollTotal() {
             const salary   = Number(document.getElementById('pv-salary').value) || 0;
             const absentD  = Number(document.getElementById('pv-absentDeduction').value) || 0;
             const leaveD   = Number(document.getElementById('pv-leaveDeduction').value) || 0;
             const otPay    = Number(document.getElementById('pv-otPay').value) || 0;
-            document.getElementById('pv-totalPay').value = Math.round((salary - absentD - leaveD + otPay) * 100) / 100;
+            const cashOut  = Number(document.getElementById('pv-cashOutAmount').value) || 0;
+            document.getElementById('pv-totalPay').value = Math.round((salary - absentD - leaveD + otPay + cashOut) * 100) / 100;
         }
 
         function confirmSavePayroll() {
@@ -1250,6 +1273,7 @@
                 absentDeduction: Number(document.getElementById('pv-absentDeduction').value) || 0,
                 leaveDeduction:  Number(document.getElementById('pv-leaveDeduction').value) || 0,
                 otPay:           Number(document.getElementById('pv-otPay').value) || 0,
+                annualLeaveCashOutAmount: Number(document.getElementById('pv-cashOutAmount').value) || 0,
                 totalPay:        Number(document.getElementById('pv-totalPay').value) || 0,
                 reason:          document.getElementById('pv-reason').value.trim()
             });
@@ -1307,7 +1331,7 @@
 
         function loadPayrollHistory() {
             const tbody = document.getElementById('payhist-table-body');
-            tbody.innerHTML = `<tr><td colspan="11" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
             const yearMonth = document.getElementById('payhist-filter-yearMonth').value;
             const empId = document.getElementById('payhist-filter-emp').value;
             let url = `${GAS_WEB_APP_URL}?action=getPayrollReports&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
@@ -1316,7 +1340,7 @@
 
             fetch(url).then(res => res.json()).then(res => {
                 if (res.status !== "success") {
-                    tbody.innerHTML = `<tr><td colspan="11" class="text-center p-4 text-red-400">載入失敗：${res.message || ''}</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="12" class="text-center p-4 text-red-400">載入失敗：${res.message || ''}</td></tr>`;
                     return;
                 }
                 allPayrollHistory = currentAdminBranch
@@ -1324,7 +1348,7 @@
                     : res.data;
                 renderPayrollHistoryTable(allPayrollHistory);
             }).catch(err => {
-                tbody.innerHTML = `<tr><td colspan="11" class="text-center p-4 text-red-400">載入失敗：${err}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="12" class="text-center p-4 text-red-400">載入失敗：${err}</td></tr>`;
             });
         }
 
@@ -1332,7 +1356,7 @@
             const tbody = document.getElementById('payhist-table-body');
             tbody.innerHTML = "";
             if (!list || !list.length) {
-                tbody.innerHTML = `<tr><td colspan="11" class="text-center p-4 text-gray-400">無符合條件的薪資紀錄</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="12" class="text-center p-4 text-gray-400">無符合條件的薪資紀錄</td></tr>`;
                 return;
             }
             list.forEach(p => {
@@ -1348,6 +1372,7 @@
                         <td class="p-3 text-red-600">-${p.absentDeduction}</td>
                         <td class="p-3 text-red-600">-${p.leaveDeduction}</td>
                         <td class="p-3 text-emerald-600">+${p.otPay}</td>
+                        <td class="p-3 text-emerald-600">${p.annualLeaveCashOutAmount ? '+' + p.annualLeaveCashOutAmount : '-'}</td>
                         <td class="p-3 font-bold">${p.totalPay}</td>
                         <td class="p-3 text-xs text-gray-400">${formatDateTimeROC(p.calcTime)}</td>
                         <td class="p-3 text-xs text-gray-400">${p.calcBy}</td>
@@ -1416,6 +1441,7 @@
             payrollData.annualLeaveQuota = (orig.annualLeaveTotal !== undefined) ? {
                 totalDays: orig.annualLeaveTotal, usedDays: orig.annualLeaveUsed, remainingDays: orig.annualLeaveRemaining
             } : null;
+            payrollData.annualLeaveCashOutAmount = orig.annualLeaveCashOutAmount || 0;
 
             fetch(GAS_WEB_APP_URL, {
                 method: "POST",
@@ -1484,7 +1510,7 @@
             const rows = document.querySelectorAll('#payhist-table-body tr');
             if (!rows.length || rows[0].cells.length < 2) { alert('目前沒有可匯出的資料'); return; }
 
-            const headers = ['年月', '員工', '底薪', '曠職扣款', '請假扣款', '加班費', '應發總額', '計算時間', '計算人', '鎖定狀態'];
+            const headers = ['年月', '員工', '底薪', '曠職扣款', '請假扣款', '加班費', '特休換薪', '應發總額', '計算時間', '計算人', '鎖定狀態'];
             let csv = '﻿' + headers.join(',') + '\n';
             rows.forEach(row => {
                 // 最後一欄是操作按鈕，不納入匯出
