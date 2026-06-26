@@ -496,6 +496,37 @@
                     <input type="date" id="reviewed-filter-end" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
                 </div>
                 <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">類別</label>
+                    <select id="reviewed-filter-category" onchange="updateReviewedSubTypeOptions()" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
+                        <option value="">全部</option>
+                        <option value="請假">請假</option>
+                        <option value="加班">加班</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">細分</label>
+                    <select id="reviewed-filter-subtype" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
+                        <option value="">全部</option>
+                        <optgroup label="假別" id="reviewed-subtype-leave-group">
+                            <option value="特休假">特休假</option>
+                            <option value="婚假">婚假</option>
+                            <option value="喪假">喪假</option>
+                            <option value="公假">公假</option>
+                            <option value="產假">產假</option>
+                            <option value="產檢假">產檢假</option>
+                            <option value="病假">病假</option>
+                            <option value="生理假">生理假</option>
+                            <option value="事假">事假</option>
+                            <option value="家庭照顧假">家庭照顧假</option>
+                            <option value="加班補休">加班補休</option>
+                        </optgroup>
+                        <optgroup label="加班類型" id="reviewed-subtype-ot-group">
+                            <option value="平日加班">平日加班</option>
+                            <option value="休息日加班">休息日加班</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="flex items-center gap-1.5">
                     <label class="text-xs text-gray-500 whitespace-nowrap">審核結果</label>
                     <select id="reviewed-filter-status" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
                         <option value="">全部</option>
@@ -1283,19 +1314,37 @@
                     <td class="p-3 text-xs text-gray-500">${f.reason || '-'}</td>
                     <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}">${f.status}</span></td>
                     <td class="p-3">${f.reviewer || '-'}</td>
-                    <td class="p-3 text-xs">${f.reviewTime || '-'}</td>
+                    <td class="p-3 text-xs">${f.reviewTime ? formatDateROC(f.reviewTime) : '-'}</td>
                 </tr>`;
             });
         }
 
+        function updateReviewedSubTypeOptions() {
+            const categoryVal = document.getElementById('reviewed-filter-category').value;
+            const subSelect   = document.getElementById('reviewed-filter-subtype');
+            const leaveGroup  = document.getElementById('reviewed-subtype-leave-group');
+            const otGroup     = document.getElementById('reviewed-subtype-ot-group');
+            leaveGroup.style.display = (!categoryVal || categoryVal === '請假') ? '' : 'none';
+            otGroup.style.display    = (!categoryVal || categoryVal === '加班') ? '' : 'none';
+            // 若目前選的細分項目不屬於可見群組，重設為「全部」
+            const visibleOptions = Array.from(subSelect.options).filter(o => o.closest('optgroup') ? o.closest('optgroup').style.display !== 'none' : true);
+            if (!visibleOptions.some(o => o.value === subSelect.value)) {
+                subSelect.value = '';
+            }
+        }
+
         function applyReviewedFilter() {
-            const empId    = document.getElementById('reviewed-filter-emp').value;
-            const startVal = document.getElementById('reviewed-filter-start').value; // yyyy-MM-dd
-            const endVal   = document.getElementById('reviewed-filter-end').value;
-            const statusVal= document.getElementById('reviewed-filter-status').value;
+            const empId      = document.getElementById('reviewed-filter-emp').value;
+            const startVal   = document.getElementById('reviewed-filter-start').value; // yyyy-MM-dd
+            const endVal     = document.getElementById('reviewed-filter-end').value;
+            const categoryVal= document.getElementById('reviewed-filter-category').value;
+            const subTypeVal = document.getElementById('reviewed-filter-subtype').value;
+            const statusVal  = document.getElementById('reviewed-filter-status').value;
 
             const filtered = allReviewedForms.filter(f => {
                 if (empId && f.empId !== empId) return false;
+                if (categoryVal && f.category !== categoryVal) return false;
+                if (subTypeVal && f.subType !== subTypeVal) return false;
                 if (statusVal && f.status !== statusVal) return false;
                 if (startVal || endVal) {
                     const formDate = (f.startTime || '').slice(0, 10); // "yyyy-MM-dd HH:mm" 取前10碼
@@ -1308,10 +1357,13 @@
         }
 
         function resetReviewedFilter() {
-            document.getElementById('reviewed-filter-emp').value    = '';
-            document.getElementById('reviewed-filter-start').value  = '';
-            document.getElementById('reviewed-filter-end').value    = '';
+            document.getElementById('reviewed-filter-emp').value      = '';
+            document.getElementById('reviewed-filter-start').value    = '';
+            document.getElementById('reviewed-filter-end').value      = '';
+            document.getElementById('reviewed-filter-category').value = '';
+            document.getElementById('reviewed-filter-subtype').value  = '';
             document.getElementById('reviewed-filter-status').value = '';
+            updateReviewedSubTypeOptions();
             renderReviewedTable(allReviewedForms);
         }
 
@@ -1320,9 +1372,13 @@
             const empSel = document.getElementById('reviewed-filter-emp').value;
             const startVal = document.getElementById('reviewed-filter-start').value;
             const endVal = document.getElementById('reviewed-filter-end').value;
+            const categoryVal = document.getElementById('reviewed-filter-category').value;
+            const subTypeVal = document.getElementById('reviewed-filter-subtype').value;
             const statusVal = document.getElementById('reviewed-filter-status').value;
             const list = allReviewedForms.filter(f => {
                 if (empSel && f.empId !== empSel) return false;
+                if (categoryVal && f.category !== categoryVal) return false;
+                if (subTypeVal && f.subType !== subTypeVal) return false;
                 if (statusVal && f.status !== statusVal) return false;
                 if (startVal || endVal) {
                     const formDate = (f.startTime || '').slice(0, 10);
@@ -1336,7 +1392,7 @@
             const headers = ['申請人', '工號', '類別', '假別/加班類型', '開始時間', '結束時間', '合計時數', '事由', '審核結果', '審核人', '審核時間'];
             let csv = '﻿' + headers.join(',') + '\n'; // BOM for Excel 正確顯示中文
             list.forEach(f => {
-                const cells = [f.name, f.empId, f.category, f.subType, f.startTime, f.endTime, f.totalHours, f.reason || '', f.status, f.reviewer || '', f.reviewTime || ''];
+                const cells = [f.name, f.empId, f.category, f.subType, f.startTime, f.endTime, f.totalHours, f.reason || '', f.status, f.reviewer || '', f.reviewTime ? formatDateROC(f.reviewTime) : ''];
                 csv += cells.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',') + '\n';
             });
 
