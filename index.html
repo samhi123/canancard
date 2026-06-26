@@ -99,6 +99,28 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 2026/6/26新增：本月工時統計卡片 — 當月已加班時數 + 當月請假天數(依假別分類) -->
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center">
+                    <i class="fa-solid fa-chart-simple mr-2 text-indigo-500"></i>本月工時統計
+                </h3>
+                <div class="flex justify-between items-center pb-3 border-b border-gray-50 text-sm">
+                    <span class="text-gray-500">當月已加班時數(已核准)</span>
+                    <span class="font-bold text-orange-600"><span id="summary-ot-hours">--</span> hr</span>
+                </div>
+                <!-- 2026/6/26新增：本月已遲到時數(每日以9:00起算，精算到分鐘；已核准上午請假當日不計) -->
+                <div class="flex justify-between items-center py-3 border-b border-gray-50 text-sm">
+                    <span class="text-gray-500">本月已遲到時數</span>
+                    <span class="font-bold text-red-600" id="summary-late-text">--</span>
+                </div>
+                <div class="text-sm pt-3">
+                    <p class="text-gray-500 mb-2">當月已請假天數(依假別)</p>
+                    <div id="summary-leave-by-type" class="space-y-1.5">
+                        <p class="text-gray-400 text-xs">尚無已核准請假紀錄</p>
+                    </div>
+                </div>
+            </div>
         </section>
 
         <section id="page-form" class="hidden bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
@@ -379,6 +401,7 @@
                 branchEl.style.display = 'none';
             }
             loadTodayAttendance(); // 登入後立即讀取今日打卡狀態
+            loadClockPageSummary(); // 2026/6/26新增：登入後立即讀取本月工時統計
             loadLeaveSettingsCache(); // 登入後快取一次假別設定（薪資給付方式/最小單位），供請假表單驗證使用
             onLeaveSubTypeChange(); // 若預設假別即為特休假，登入後立即顯示特休額度
         }
@@ -520,6 +543,39 @@
                     if (d.clockOut) {
                         outEl.innerText = `${d.clockOut} (成功)`;
                         outEl.className = "font-medium text-emerald-600";
+                    }
+                })
+                .catch(() => {});
+        }
+
+        // 2026/6/26新增：讀取「本月工時統計」(當月已加班時數 + 當月請假天數依假別分類)，顯示在打卡首頁
+        function loadClockPageSummary() {
+            const empId = currentEmployee.empId;
+            if (!GAS_WEB_APP_URL || !empId || empId === 'E001') return;
+            fetch(`${GAS_WEB_APP_URL}?action=getClockPageSummary&empId=${encodeURIComponent(empId)}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status !== 'success') return;
+                    const otEl = document.getElementById('summary-ot-hours');
+                    if (otEl) otEl.innerText = res.data.monthlyOtHours;
+                    const lateEl = document.getElementById('summary-late-text');
+                    if (lateEl) {
+                        const h = res.data.lateHoursPart || 0;
+                        const mins = res.data.lateMinutesPart || 0;
+                        lateEl.innerText = (h === 0 && mins === 0) ? '0小時0分鐘' : `${h}小時${mins}分鐘`;
+                    }
+                    const listEl = document.getElementById('summary-leave-by-type');
+                    if (!listEl) return;
+                    const detail = res.data.leaveByType || [];
+                    if (detail.length === 0) {
+                        listEl.innerHTML = `<p class="text-gray-400 text-xs">尚無已核准請假紀錄</p>`;
+                    } else {
+                        listEl.innerHTML = detail.map(item =>
+                            `<div class="flex justify-between items-center">
+                                <span class="text-gray-600">${item.subType}</span>
+                                <span class="font-medium text-gray-800">${item.days} 天</span>
+                            </div>`
+                        ).join('');
                     }
                 })
                 .catch(() => {});
@@ -669,6 +725,8 @@
                     document.getElementById('todayClockOut').className = "font-medium text-emerald-600";
                 }
                 setTimeout(loadTodayAttendance, 2000); // 2秒後從GAS重新確認
+                // 2026/6/26新增：下班打卡可能觸發加班單自動修正，延遲後重新讀取本月工時統計
+                if (type === '下班') setTimeout(loadClockPageSummary, 2000);
             })
             .catch(error => {
                 console.error("API 錯誤:", error);
