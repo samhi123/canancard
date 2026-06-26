@@ -365,7 +365,7 @@
         // 讀取後台「假別設定」（假別/薪資給付方式/最小單位），快取於 leaveSettingsCache，供請假表單依最小單位驗證時數
         function loadLeaveSettingsCache() {
             if (!GAS_WEB_APP_URL) return;
-            fetch(`${GAS_WEB_APP_URL}?action=getLeaveSettings&_t=${new Date().getTime()}`)
+            fetch(`${GAS_WEB_APP_URL}?action=getLeaveSettings&branch=${encodeURIComponent(currentEmployee.branch || "")}&_t=${new Date().getTime()}`)
                 .then(r => r.json())
                 .then(res => {
                     if (res.status !== 'success') return;

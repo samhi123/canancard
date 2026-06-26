@@ -281,6 +281,12 @@
         </div>
 
         <div id="leave-settings-section" class="tab-content hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6 space-y-6">
+            <div id="leave-settings-branch-bar" class="flex items-center gap-2 text-sm bg-indigo-50 rounded-lg px-3 py-2 hidden">
+                <span class="text-gray-600 font-medium">目前設定所別：</span>
+                <span id="leave-settings-branch-fixed" class="text-indigo-700 font-bold hidden"></span>
+                <select id="leave-settings-branch-select" class="hidden border border-gray-200 rounded-lg px-2 py-1 text-sm" onchange="loadLeaveSettings(); loadOvertimeSettings();"></select>
+                <span class="text-gray-400 text-xs">（假別與加班設定皆依此所別分別建檔）</span>
+            </div>
             <div>
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-lg font-bold text-gray-700">假別設定</h2>
@@ -305,7 +311,7 @@
                         <i class="fa-solid fa-rotate mr-1"></i>重新整理
                     </button>
                 </div>
-                <p class="text-xs text-gray-400 mb-3">設定固定的加班時薪，計算加班費時將以此金額乘以法定倍率（平日1.34/1.67倍、休息日1.34/1.67/2.67倍）。未設定或填0時，將自動沿用「底薪÷30÷8」算出的時薪。</p>
+                <p class="text-xs text-gray-400 mb-3">設定固定的加班時薪後，加班費將直接以「時數 × 此金額」固定計算，不再乘上法定倍率。未設定或填0時，將自動沿用「底薪÷30÷8」算出的時薪，並乘以法定倍率（平日1.34/1.67倍、休息日1.34/1.67/2.67倍）。</p>
                 <div class="flex items-center gap-2">
                     <label class="text-sm font-medium text-gray-600">加班時薪：</label>
                     <input type="number" id="overtime-hourly-rate" min="0" step="1" class="border border-gray-200 rounded-lg px-2 py-1 text-sm w-32">
@@ -1112,14 +1118,49 @@
             URL.revokeObjectURL(url);
         }
 
+        // ===================== 請假加班設定：所別選擇（假別設定／加班時薪設定皆依此所別分別建檔） =====================
+        // 一般管理員（自身已有所別）：鎖定為自己的所別，不可切換
+        // 全所管理員（無所別）：顯示所別下拉選單供選擇要管理哪個所別的設定
+        function setupLeaveSettingsBranchBar() {
+            const bar = document.getElementById('leave-settings-branch-bar');
+            const fixedEl = document.getElementById('leave-settings-branch-fixed');
+            const selectEl = document.getElementById('leave-settings-branch-select');
+            if (!bar) return;
+            bar.classList.remove('hidden');
+            if (currentAdminBranch) {
+                fixedEl.classList.remove('hidden');
+                selectEl.classList.add('hidden');
+                fixedEl.innerText = currentAdminBranch;
+            } else {
+                fixedEl.classList.add('hidden');
+                selectEl.classList.remove('hidden');
+                const branches = [...new Set((hrProfilesData || []).map(e => e.branch).filter(b => b))].sort();
+                const prevValue = selectEl.value;
+                selectEl.innerHTML = branches.map(b => `<option value="${b}">${b}</option>`).join('');
+                if (branches.includes(prevValue)) selectEl.value = prevValue;
+            }
+        }
+
+        function getActiveSettingsBranch() {
+            if (currentAdminBranch) return currentAdminBranch;
+            const selectEl = document.getElementById('leave-settings-branch-select');
+            return selectEl ? selectEl.value : "";
+        }
+
         // ===================== 請假加班設定：假別設定 =====================
         const LEAVE_PAY_TYPES = ["全薪", "半薪", "不給付"];
 
         function loadLeaveSettings() {
+            setupLeaveSettingsBranchBar();
             const tbody = document.getElementById('leave-settings-table-body');
             if (!tbody) return;
+            const branch = getActiveSettingsBranch();
+            if (!branch) {
+                tbody.innerHTML = `<tr><td colspan="3" class="p-2 text-center text-gray-400">請先選擇所別</td></tr>`;
+                return;
+            }
             tbody.innerHTML = `<tr><td colspan="3" class="p-2 text-center text-gray-400">載入中...</td></tr>`;
-            const url = `${GAS_WEB_APP_URL}?action=getLeaveSettings&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
+            const url = `${GAS_WEB_APP_URL}?action=getLeaveSettings&lineUid=${encodeURIComponent(currentAdminLineUid)}&branch=${encodeURIComponent(branch)}&_t=${new Date().getTime()}`;
             fetch(url).then(res => res.json()).then(res => {
                 tbody.innerHTML = "";
                 if (res.status !== "success" || !res.data.length) {
@@ -1147,6 +1188,8 @@
         }
 
         function saveLeaveSettingsForm() {
+            const branch = getActiveSettingsBranch();
+            if (!branch) { alert("請先選擇所別"); return; }
             const names = document.querySelectorAll('.leave-setting-name');
             const payTypes = document.querySelectorAll('.leave-setting-paytype');
             const units = document.querySelectorAll('.leave-setting-unit');
@@ -1158,7 +1201,7 @@
             });
             fetch(GAS_WEB_APP_URL, {
                 method: "POST",
-                body: JSON.stringify({ action: "saveLeaveSettings", lineUid: currentAdminLineUid, settings: settings })
+                body: JSON.stringify({ action: "saveLeaveSettings", lineUid: currentAdminLineUid, branch: branch, settings: settings })
             })
             .then(res => res.json())
             .then(res => {
@@ -1172,9 +1215,12 @@
 
         // ===================== 請假加班設定：加班時薪設定 =====================
         function loadOvertimeSettings() {
+            setupLeaveSettingsBranchBar();
             const input = document.getElementById('overtime-hourly-rate');
             if (!input) return;
-            const url = `${GAS_WEB_APP_URL}?action=getOvertimeSettings&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
+            const branch = getActiveSettingsBranch();
+            if (!branch) { input.value = 0; return; }
+            const url = `${GAS_WEB_APP_URL}?action=getOvertimeSettings&lineUid=${encodeURIComponent(currentAdminLineUid)}&branch=${encodeURIComponent(branch)}&_t=${new Date().getTime()}`;
             fetch(url).then(res => res.json()).then(res => {
                 if (res.status === "success") {
                     input.value = res.data.hourlyRate || 0;
@@ -1183,11 +1229,13 @@
         }
 
         function saveOvertimeSettingsForm() {
+            const branch = getActiveSettingsBranch();
+            if (!branch) { alert("請先選擇所別"); return; }
             const input = document.getElementById('overtime-hourly-rate');
             const hourlyRate = Number(input.value) || 0;
             fetch(GAS_WEB_APP_URL, {
                 method: "POST",
-                body: JSON.stringify({ action: "saveOvertimeSettings", lineUid: currentAdminLineUid, hourlyRate: hourlyRate })
+                body: JSON.stringify({ action: "saveOvertimeSettings", lineUid: currentAdminLineUid, branch: branch, hourlyRate: hourlyRate })
             })
             .then(res => res.json())
             .then(res => {
