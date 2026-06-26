@@ -158,8 +158,6 @@
                     <span>當月已加班：<span id="ot-balance-monthly" class="font-bold">--</span> hr</span>
                     <span>當週已加班：<span id="ot-balance-weekly" class="font-bold">--</span> hr</span>
                 </div>
-                <label class="block text-sm font-bold text-gray-700 mb-1 mt-3">本日完成事項</label>
-                <textarea id="form-completed-tasks" rows="2" placeholder="請簡述本次加班完成的工作內容..." class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"></textarea>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
@@ -176,6 +174,12 @@
             <div>
                 <label class="block text-sm font-bold text-gray-700 mb-1">合計申請時數 (小時)</label>
                 <input type="number" id="form-hours" placeholder="例如: 8" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <!-- 2026/6/26調整：本日完成事項挪至事由/備註說明上方 -->
+            <div id="completed-tasks-block" class="hidden">
+                <label class="block text-sm font-bold text-gray-700 mb-1">本日完成事項</label>
+                <textarea id="form-completed-tasks" rows="2" placeholder="請簡述本次加班完成的工作內容..." class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"></textarea>
             </div>
 
             <div>
@@ -566,18 +570,21 @@
             const btnOvertime = document.getElementById('btn-type-overtime');
             const leaveBlock = document.getElementById('leave-type-block');
             const otBlock = document.getElementById('ot-type-block');
+            const completedTasksBlock = document.getElementById('completed-tasks-block');
 
             if (type === 'leave') {
                 btnLeave.className = "py-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold text-sm transition";
                 btnOvertime.className = "py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition";
                 leaveBlock.classList.remove('hidden');
                 otBlock.classList.add('hidden');
+                if (completedTasksBlock) completedTasksBlock.classList.add('hidden');
                 onLeaveSubTypeChange();
             } else {
                 btnOvertime.className = "py-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold text-sm transition";
                 btnLeave.className = "py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition";
                 leaveBlock.classList.add('hidden');
                 otBlock.classList.remove('hidden');
+                if (completedTasksBlock) completedTasksBlock.classList.remove('hidden');
                 document.getElementById('annual-leave-info').classList.add('hidden');
                 document.getElementById('leave-unit-hint').classList.add('hidden');
                 loadOvertimeBalance(); // 2026/6/26新增：切換到加班申請時自動帶出當月/當週已加班時數
