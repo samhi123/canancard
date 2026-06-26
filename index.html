@@ -129,12 +129,22 @@
                     <option value="生理假">生理假</option>
                     <option value="事假">事假</option>
                     <option value="家庭照顧假">家庭照顧假</option>
+                    <option value="加班補休">加班補休</option>
                 </select>
                 <div id="annual-leave-info" class="hidden mt-2 bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2.5 text-xs text-indigo-700 flex justify-between">
                     <span>特休天數：<span id="annual-leave-total" class="font-bold">--</span> 天</span>
                     <span>剩餘特休天數：<span id="annual-leave-remaining" class="font-bold">--</span> 天</span>
                 </div>
+                <!-- 2026/6/26新增：選擇「加班補休」時顯示當月可用補休額度 -->
+                <div id="comp-leave-info" class="hidden mt-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5 text-xs text-amber-700 flex justify-between">
+                    <span>當月已加班時數：<span id="comp-leave-ot-hours" class="font-bold">--</span> hr</span>
+                    <span>當月可用補休額度：<span id="comp-leave-available" class="font-bold">--</span> hr</span>
+                </div>
                 <p id="leave-unit-hint" class="hidden mt-2 text-xs text-gray-500"></p>
+                <!-- 2026/6/26新增：自動帶出當月已核准請假天數 -->
+                <div id="monthly-leave-days-info" class="mt-2 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 text-xs text-gray-600">
+                    本月已請假：<span id="monthly-leave-days" class="font-bold text-gray-800">--</span> 天
+                </div>
             </div>
 
             <div id="ot-type-block" class="hidden">
@@ -143,6 +153,13 @@
                     <option value="平日加班">平日加班</option>
                     <option value="休息日加班">休息日加班</option>
                 </select>
+                <!-- 2026/6/26新增：自動帶出當月/當週已加班時數 -->
+                <div id="ot-balance-info" class="mt-2 bg-orange-50 border border-orange-100 rounded-xl px-3 py-2.5 text-xs text-orange-700 flex justify-between">
+                    <span>當月已加班：<span id="ot-balance-monthly" class="font-bold">--</span> hr</span>
+                    <span>當週已加班：<span id="ot-balance-weekly" class="font-bold">--</span> hr</span>
+                </div>
+                <label class="block text-sm font-bold text-gray-700 mb-1 mt-3">本日完成事項</label>
+                <textarea id="form-completed-tasks" rows="2" placeholder="請簡述本次加班完成的工作內容..." class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"></textarea>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
@@ -387,7 +404,59 @@
             } else {
                 infoEl.classList.add('hidden');
             }
+
+            // 2026/6/26新增：選擇「加班補休」時顯示當月可用補休額度
+            const compInfoEl = document.getElementById('comp-leave-info');
+            if (compInfoEl) {
+                if (subTypeEl.value === '加班補休') {
+                    compInfoEl.classList.remove('hidden');
+                    loadOvertimeBalance();
+                } else {
+                    compInfoEl.classList.add('hidden');
+                }
+            }
+
+            loadMonthlyLeaveDays();
             updateLeaveUnitHint();
+        }
+
+        // 2026/6/26新增：員工自己的「加班補休」可用額度快取（送出申請前的前端擋下用）
+        let otBalanceCache = { monthlyOtHours: 0, weeklyOtHours: 0, usedCompHours: 0, availableCompHours: 0 };
+
+        // 讀取目前員工的當月/當週已加班時數，以及「加班補休」可用額度
+        function loadOvertimeBalance() {
+            const empId = currentEmployee.empId;
+            if (!GAS_WEB_APP_URL || !empId || empId === 'E001') return; // 尚未登入時跳過
+            fetch(`${GAS_WEB_APP_URL}?action=getOvertimeBalance&empId=${encodeURIComponent(empId)}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status !== 'success') return;
+                    otBalanceCache = res.data;
+                    const compOtHoursEl = document.getElementById('comp-leave-ot-hours');
+                    const compAvailEl = document.getElementById('comp-leave-available');
+                    if (compOtHoursEl) compOtHoursEl.innerText = res.data.monthlyOtHours;
+                    if (compAvailEl) compAvailEl.innerText = res.data.availableCompHours;
+                    const otMonthlyEl = document.getElementById('ot-balance-monthly');
+                    const otWeeklyEl = document.getElementById('ot-balance-weekly');
+                    if (otMonthlyEl) otMonthlyEl.innerText = res.data.monthlyOtHours;
+                    if (otWeeklyEl) otWeeklyEl.innerText = res.data.weeklyOtHours;
+                })
+                .catch(() => {});
+        }
+
+        // 2026/6/26新增：讀取目前員工當月「已核准」請假天數
+        function loadMonthlyLeaveDays() {
+            const empId = currentEmployee.empId;
+            const daysEl = document.getElementById('monthly-leave-days');
+            if (!daysEl) return;
+            if (!GAS_WEB_APP_URL || !empId || empId === 'E001') return; // 尚未登入時跳過
+            fetch(`${GAS_WEB_APP_URL}?action=getMonthlyLeaveDays&empId=${encodeURIComponent(empId)}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status !== 'success') { daysEl.innerText = '--'; return; }
+                    daysEl.innerText = res.data.totalDays;
+                })
+                .catch(() => { daysEl.innerText = '--'; });
         }
 
         // 依目前選擇的假別，從快取的假別設定取得最小單位(小時)，更新時數輸入框的 step 與提示文字
@@ -480,6 +549,15 @@
             activeBtn.querySelector('span').className = "text-[11px] font-bold mt-1";
 
             if (pageId === 'history') loadMyForms();
+            // 2026/6/26新增：進入表單申請頁時，依目前選擇的申請類型自動帶出相關時數資訊
+            if (pageId === 'form') {
+                if (currentFormType === 'leave') {
+                    loadMonthlyLeaveDays();
+                    onLeaveSubTypeChange();
+                } else {
+                    loadOvertimeBalance();
+                }
+            }
         }
 
         function toggleFormType(type) {
@@ -502,6 +580,7 @@
                 otBlock.classList.remove('hidden');
                 document.getElementById('annual-leave-info').classList.add('hidden');
                 document.getElementById('leave-unit-hint').classList.add('hidden');
+                loadOvertimeBalance(); // 2026/6/26新增：切換到加班申請時自動帶出當月/當週已加班時數
             }
         }
 
@@ -612,6 +691,8 @@
             const reason     = document.getElementById('form-reason').value.trim();
             const subType    = document.getElementById('form-sub-type').value;
             const otType     = document.getElementById('form-ot-type').value;
+            const completedTasksEl = document.getElementById('form-completed-tasks');
+            const completedTasks = completedTasksEl ? completedTasksEl.value.trim() : "";
 
             // 逐欄清除舊錯誤狀態
             ['form-start-time', 'form-end-time', 'form-hours', 'form-reason'].forEach(id => setFieldError(id, false));
@@ -648,6 +729,14 @@
                 errors.push('請填寫「事由 / 備註說明」');
             }
 
+            // 2026/6/26新增：「加班補休」於送出前先擋下超過當月可用額度的申請（伺服器端也會再次檢查）
+            if (currentFormType === 'leave' && subType === '加班補休' && totalHours && Number(totalHours) > 0) {
+                if (Number(totalHours) > otBalanceCache.availableCompHours) {
+                    setFieldError('form-hours', true);
+                    errors.push(`「加班補休」申請時數(${totalHours}hr)超過當月可用額度(${otBalanceCache.availableCompHours}hr)`);
+                }
+            }
+
             if (errors.length > 0) {
                 alert('⚠️ 請修正以下欄位：\n\n• ' + errors.join('\n• '));
                 return;
@@ -662,7 +751,8 @@
                 startTime: startTime.replace("T", " "),
                 endTime: endTime.replace("T", " "),
                 totalHours: totalHours,
-                reason: reason
+                reason: reason,
+                completedTasks: currentFormType === 'overtime' ? completedTasks : ""
             };
 
             fetch(GAS_WEB_APP_URL, {
@@ -674,7 +764,7 @@
             .then(() => {
                 alert(`📋 表單已順利上傳！\n申請人：${currentEmployee.name}\n等待主管核簽。`);
                 // 清空欄位並移除錯誤狀態
-                ['form-start-time', 'form-end-time', 'form-hours', 'form-reason'].forEach(id => {
+                ['form-start-time', 'form-end-time', 'form-hours', 'form-reason', 'form-completed-tasks'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) { el.value = ""; setFieldError(id, false); }
                 });
