@@ -85,6 +85,9 @@
             <button onclick="switchTab('annual-leave-section'); loadAnnualLeaveQuotas();" id="btn-annual-leave-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 <i class="fa-solid fa-umbrella-beach mr-1"></i>特休查詢
             </button>
+            <button onclick="switchTab('reviewed-section'); loadReviewedForms();" id="btn-reviewed-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                <i class="fa-solid fa-clipboard-check mr-1"></i>審核歷史查詢
+            </button>
         </div>
 
         <div id="pending-section" class="tab-content bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
@@ -465,6 +468,66 @@
                         </tr>
                     </thead>
                     <tbody id="aleave-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 2026/6/26新增：審核歷史查詢（請假+加班已核准/已拒絕記錄合併查詢） -->
+        <div id="reviewed-section" class="tab-content hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-700">審核歷史查詢</h2>
+                <button onclick="loadReviewedForms()" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg font-medium transition-all">
+                    <i class="fa-solid fa-rotate mr-1"></i>重新整理
+                </button>
+            </div>
+            <div class="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-xl">
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">員工</label>
+                    <select id="reviewed-filter-emp" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[120px]">
+                        <option value="">全部員工</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">日期從</label>
+                    <input type="date" id="reviewed-filter-start" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">至</label>
+                    <input type="date" id="reviewed-filter-end" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">審核結果</label>
+                    <select id="reviewed-filter-status" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
+                        <option value="">全部</option>
+                        <option value="已核准">已核准</option>
+                        <option value="已拒絕">已拒絕</option>
+                    </select>
+                </div>
+                <button onclick="applyReviewedFilter()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
+                    <i class="fa-solid fa-magnifying-glass mr-1"></i>篩選
+                </button>
+                <button onclick="resetReviewedFilter()" class="border border-gray-200 hover:bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
+                    清除
+                </button>
+                <button onclick="exportReviewedCSV()" class="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
+                    <i class="fa-solid fa-file-csv mr-1"></i>匯出 CSV
+                </button>
+            </div>
+            <p id="reviewed-count" class="text-xs text-gray-400 mb-2"></p>
+            <div class="table-container">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-sm font-semibold border-b border-gray-100">
+                            <th class="p-3">申請人</th>
+                            <th class="p-3">類別</th>
+                            <th class="p-3">假別/加班類型與時間</th>
+                            <th class="p-3">事由</th>
+                            <th class="p-3 text-center">審核結果</th>
+                            <th class="p-3">審核人</th>
+                            <th class="p-3">審核時間</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reviewed-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
                 </table>
             </div>
         </div>
@@ -1160,6 +1223,128 @@
             const a    = document.createElement('a');
             const now  = new Date();
             const fname = `出勤紀錄_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.csv`;
+            a.href = url; a.download = fname; a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ===================== 審核歷史查詢（2026/6/26新增） =====================
+        let allReviewedForms = []; // 全域快取，供篩選與匯出使用
+
+        function loadReviewedForms() {
+            const tbody = document.getElementById('reviewed-table-body');
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
+            const url = `${GAS_WEB_APP_URL}?action=getReviewedForms&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
+            fetch(url).then(res => res.json()).then(res => {
+                if (res.status === "success") {
+                    // 依所別過濾（與其他頁籤一致）
+                    allReviewedForms = currentAdminBranch
+                        ? res.data.filter(f => {
+                            const emp = hrProfilesData.find(e => e.empId === f.empId);
+                            return emp && emp.branch === currentAdminBranch;
+                          })
+                        : res.data;
+
+                    // 更新員工下拉選單（同所別員工檔案為主）
+                    const empSelect = document.getElementById('reviewed-filter-emp');
+                    const prevEmp = empSelect.value;
+                    const branchEmps = currentAdminBranch
+                        ? hrProfilesData.filter(e => e.branch === currentAdminBranch)
+                        : hrProfilesData;
+                    empSelect.innerHTML = '<option value="">全部員工</option>';
+                    branchEmps
+                        .slice()
+                        .sort((a, b) => a.empId.localeCompare(b.empId))
+                        .forEach(emp => {
+                            empSelect.innerHTML += `<option value="${emp.empId}">${emp.name}（${emp.empId}）</option>`;
+                        });
+                    empSelect.value = prevEmp;
+
+                    renderReviewedTable(allReviewedForms);
+                }
+            });
+        }
+
+        function renderReviewedTable(list) {
+            const tbody = document.getElementById('reviewed-table-body');
+            const countEl = document.getElementById('reviewed-count');
+            tbody.innerHTML = "";
+            if (!list || list.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-gray-400">無符合條件的審核紀錄</td></tr>`;
+                countEl.innerText = "";
+                return;
+            }
+            countEl.innerText = `共 ${list.length} 筆`;
+            list.forEach(f => {
+                const statusColor = f.status === "已核准" ? "text-emerald-600 bg-emerald-50" : "text-red-500 bg-red-50";
+                tbody.innerHTML += `<tr class="border-b border-gray-50">
+                    <td class="p-3">${f.name}<br><span class="text-xs text-gray-400 font-mono">${f.empId}</span></td>
+                    <td class="p-3">${f.category}</td>
+                    <td class="p-3 text-sm">${f.subType}<br><span class="text-xs text-gray-400">${f.startTime} ~ ${f.endTime}（${f.totalHours}hr）</span></td>
+                    <td class="p-3 text-xs text-gray-500">${f.reason || '-'}</td>
+                    <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}">${f.status}</span></td>
+                    <td class="p-3">${f.reviewer || '-'}</td>
+                    <td class="p-3 text-xs">${f.reviewTime || '-'}</td>
+                </tr>`;
+            });
+        }
+
+        function applyReviewedFilter() {
+            const empId    = document.getElementById('reviewed-filter-emp').value;
+            const startVal = document.getElementById('reviewed-filter-start').value; // yyyy-MM-dd
+            const endVal   = document.getElementById('reviewed-filter-end').value;
+            const statusVal= document.getElementById('reviewed-filter-status').value;
+
+            const filtered = allReviewedForms.filter(f => {
+                if (empId && f.empId !== empId) return false;
+                if (statusVal && f.status !== statusVal) return false;
+                if (startVal || endVal) {
+                    const formDate = (f.startTime || '').slice(0, 10); // "yyyy-MM-dd HH:mm" 取前10碼
+                    if (startVal && formDate < startVal) return false;
+                    if (endVal   && formDate > endVal)   return false;
+                }
+                return true;
+            });
+            renderReviewedTable(filtered);
+        }
+
+        function resetReviewedFilter() {
+            document.getElementById('reviewed-filter-emp').value    = '';
+            document.getElementById('reviewed-filter-start').value  = '';
+            document.getElementById('reviewed-filter-end').value    = '';
+            document.getElementById('reviewed-filter-status').value = '';
+            renderReviewedTable(allReviewedForms);
+        }
+
+        function exportReviewedCSV() {
+            // 從目前篩選後的資料陣列重建（比解析DOM更可靠，因表格內含<br>換行）
+            const empSel = document.getElementById('reviewed-filter-emp').value;
+            const startVal = document.getElementById('reviewed-filter-start').value;
+            const endVal = document.getElementById('reviewed-filter-end').value;
+            const statusVal = document.getElementById('reviewed-filter-status').value;
+            const list = allReviewedForms.filter(f => {
+                if (empSel && f.empId !== empSel) return false;
+                if (statusVal && f.status !== statusVal) return false;
+                if (startVal || endVal) {
+                    const formDate = (f.startTime || '').slice(0, 10);
+                    if (startVal && formDate < startVal) return false;
+                    if (endVal && formDate > endVal) return false;
+                }
+                return true;
+            });
+            if (!list.length) { alert('目前沒有可匯出的資料'); return; }
+
+            const headers = ['申請人', '工號', '類別', '假別/加班類型', '開始時間', '結束時間', '合計時數', '事由', '審核結果', '審核人', '審核時間'];
+            let csv = '﻿' + headers.join(',') + '\n'; // BOM for Excel 正確顯示中文
+            list.forEach(f => {
+                const cells = [f.name, f.empId, f.category, f.subType, f.startTime, f.endTime, f.totalHours, f.reason || '', f.status, f.reviewer || '', f.reviewTime || ''];
+                csv += cells.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            const now  = new Date();
+            const fname = `審核歷史_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.csv`;
             a.href = url; a.download = fname; a.click();
             URL.revokeObjectURL(url);
         }
