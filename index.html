@@ -128,14 +128,28 @@
             
             <div>
                 <label class="block text-sm font-bold text-gray-700 mb-2">申請項目</label>
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-3 gap-2">
                     <button type="button" onclick="toggleFormType('leave')" id="btn-type-leave" class="py-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold text-sm transition">
                         請假申請
                     </button>
                     <button type="button" onclick="toggleFormType('overtime')" id="btn-type-overtime" class="py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition">
                         加班申請
                     </button>
+                    <button type="button" onclick="toggleFormType('forgotclock')" id="btn-type-forgotclock" class="py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition">
+                        忘打卡申請
+                    </button>
                 </div>
+            </div>
+
+            <!-- 2026/6/30新增：忘打卡申請欄位 -->
+            <div id="forgotclock-type-block" class="hidden">
+                <label class="block text-sm font-bold text-gray-700 mb-1">補登類型</label>
+                <select id="form-forgotclock-type" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
+                    <option value="上班">上班</option>
+                    <option value="下班">下班</option>
+                </select>
+                <label class="block text-sm font-bold text-gray-700 mb-1 mt-3">補登日期時間</label>
+                <input type="datetime-local" id="form-forgotclock-datetime" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
             </div>
 
             <div id="leave-type-block">
@@ -182,7 +196,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div id="start-end-time-block" class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">開始日期時間</label>
                     <input type="datetime-local" id="form-start-time" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
@@ -193,7 +207,7 @@
                 </div>
             </div>
 
-            <div>
+            <div id="total-hours-block">
                 <label class="block text-sm font-bold text-gray-700 mb-1">合計申請時數 (小時)</label>
                 <input type="number" id="form-hours" placeholder="例如: 8" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
             </div>
@@ -624,26 +638,46 @@
             currentFormType = type;
             const btnLeave = document.getElementById('btn-type-leave');
             const btnOvertime = document.getElementById('btn-type-overtime');
+            const btnForgotClock = document.getElementById('btn-type-forgotclock');
             const leaveBlock = document.getElementById('leave-type-block');
             const otBlock = document.getElementById('ot-type-block');
+            const forgotClockBlock = document.getElementById('forgotclock-type-block');
             const completedTasksBlock = document.getElementById('completed-tasks-block');
+            const startEndBlock = document.getElementById('start-end-time-block');
+            const totalHoursBlock = document.getElementById('total-hours-block');
+
+            const activeClass = "py-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold text-sm transition";
+            const inactiveClass = "py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition";
+            btnLeave.className = (type === 'leave') ? activeClass : inactiveClass;
+            btnOvertime.className = (type === 'overtime') ? activeClass : inactiveClass;
+            btnForgotClock.className = (type === 'forgotclock') ? activeClass : inactiveClass;
 
             if (type === 'leave') {
-                btnLeave.className = "py-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold text-sm transition";
-                btnOvertime.className = "py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition";
                 leaveBlock.classList.remove('hidden');
                 otBlock.classList.add('hidden');
+                forgotClockBlock.classList.add('hidden');
+                startEndBlock.classList.remove('hidden');
+                totalHoursBlock.classList.remove('hidden');
                 if (completedTasksBlock) completedTasksBlock.classList.add('hidden');
                 onLeaveSubTypeChange();
-            } else {
-                btnOvertime.className = "py-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold text-sm transition";
-                btnLeave.className = "py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition";
+            } else if (type === 'overtime') {
                 leaveBlock.classList.add('hidden');
                 otBlock.classList.remove('hidden');
+                forgotClockBlock.classList.add('hidden');
+                startEndBlock.classList.remove('hidden');
+                totalHoursBlock.classList.remove('hidden');
                 if (completedTasksBlock) completedTasksBlock.classList.remove('hidden');
                 document.getElementById('annual-leave-info').classList.add('hidden');
                 document.getElementById('leave-unit-hint').classList.add('hidden');
                 loadOvertimeBalance(); // 2026/6/26新增：切換到加班申請時自動帶出當月/當週已加班時數
+            } else if (type === 'forgotclock') {
+                // 2026/6/30新增：忘打卡申請只需補登類型+單一日期時間，不需開始/結束時間與合計時數
+                leaveBlock.classList.add('hidden');
+                otBlock.classList.add('hidden');
+                forgotClockBlock.classList.remove('hidden');
+                startEndBlock.classList.add('hidden');
+                totalHoursBlock.classList.add('hidden');
+                if (completedTasksBlock) completedTasksBlock.classList.add('hidden');
             }
         }
 
@@ -747,8 +781,79 @@
             }
         }
 
+        // 2026/6/30新增：忘打卡申請送出（與請假/加班送出邏輯獨立，欄位不同）
+        function submitForgotClockApplication() {
+            const fcType = document.getElementById('form-forgotclock-type').value;
+            const fcDateTimeRaw = document.getElementById('form-forgotclock-datetime').value;
+            const fcReason = document.getElementById('form-reason').value.trim();
+
+            ['form-forgotclock-datetime', 'form-reason'].forEach(id => setFieldError(id, false));
+            const errors = [];
+            if (!fcDateTimeRaw) {
+                setFieldError('form-forgotclock-datetime', true);
+                errors.push('請填寫「補登日期時間」');
+            }
+            if (!fcReason) {
+                setFieldError('form-reason', true);
+                errors.push('請填寫「事由 / 備註說明」');
+            }
+            if (errors.length > 0) {
+                alert('⚠️ 請修正以下欄位：\n\n• ' + errors.join('\n• '));
+                return;
+            }
+
+            const fcDateTime = fcDateTimeRaw.replace("T", " ");
+
+            // 送出前先檢查前後10分鐘內是否已有打卡紀錄（一般GET，可讀取回應）
+            fetch(`${GAS_WEB_APP_URL}?action=checkClockConflict&empId=${encodeURIComponent(currentEmployee.empId)}&dateTime=${encodeURIComponent(fcDateTime)}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status === 'success' && res.data && res.data.conflict) {
+                        alert(`⚠️ 無法申請：該時間前後10分鐘內已有打卡紀錄\n（${res.data.existingType} ${res.data.existingDateTime}）`);
+                        return;
+                    }
+
+                    const payload = {
+                        action: "submitForgotClock",
+                        empId: currentEmployee.empId,
+                        name: currentEmployee.name,
+                        type: fcType,
+                        dateTime: fcDateTime,
+                        reason: fcReason
+                    };
+
+                    fetch(GAS_WEB_APP_URL, {
+                        method: "POST",
+                        mode: "no-cors",
+                        headers: { "Content-Type": "text/plain;charset=utf-8" },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(() => {
+                        alert(`📋 忘打卡申請已順利上傳！\n申請人：${currentEmployee.name}\n等待主管核簽。`);
+                        ['form-forgotclock-datetime', 'form-reason'].forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el) { el.value = ""; setFieldError(id, false); }
+                        });
+                        switchPage('history');
+                    })
+                    .catch(error => {
+                        console.error("API 錯誤:", error);
+                        alert("表單送出失敗。");
+                    });
+                })
+                .catch(error => {
+                    console.error("衝突檢查錯誤:", error);
+                    alert("檢查打卡衝突時發生錯誤，請稍後再試。");
+                });
+        }
+
         function submitApplication() {
             if (!GAS_WEB_APP_URL) { alert("❌ 連線失敗：尚未載入設定網址。"); return; }
+
+            if (currentFormType === 'forgotclock') {
+                submitForgotClockApplication();
+                return;
+            }
 
             const startTime  = document.getElementById('form-start-time').value;
             const endTime    = document.getElementById('form-end-time').value;
@@ -882,7 +987,7 @@
                     // 只保留近一個月的記錄（formId = "F" + timestamp ms）
                     const oneMonthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
                     const filtered = res.data.filter(f => {
-                        const ts = parseInt(f.formId.replace(/^F/, ''));
+                        const ts = parseInt(f.formId.replace(/^FC?/, ''));
                         return !isNaN(ts) && ts >= oneMonthAgo;
                     });
 
@@ -911,17 +1016,21 @@
                             statusLabel = f.status;
                         }
                         // 從 formId 時間戳算出申請日期（民國，不含時間）
-                        const applyTs = parseInt(f.formId.replace(/^F/, ''));
+                        const applyTs = parseInt(f.formId.replace(/^FC?/, ''));
                         let applyDateStr = '';
                         if (!isNaN(applyTs)) {
                             const ad = new Date(applyTs);
                             applyDateStr = `${ad.getFullYear() - 1911}年${ad.getMonth() + 1}月${ad.getDate()}日`;
                         }
-                        const catColor  = f.category === '請假' ? 'bg-indigo-100 text-indigo-700' : 'bg-orange-100 text-orange-700';
+                        const catColor  = f.category === '請假' ? 'bg-indigo-100 text-indigo-700' : (f.category === '忘打卡' ? 'bg-teal-100 text-teal-700' : 'bg-orange-100 text-orange-700');
                         const canDelete = f.status === '待審核';
                         const deleteBtn = canDelete
                             ? `<button onclick="deleteForm('${f.formId}','${f.category}')" class="text-red-400 hover:text-red-600 text-xs px-2 py-0.5 rounded border border-red-200 hover:border-red-400 transition">🗑 撤回</button>`
                             : '';
+                        // 忘打卡只有單一補登時間，不顯示「開始→結束 時數」
+                        const timeLine = f.category === '忘打卡'
+                            ? `📅 ${fmtDT(f.startTime)}`
+                            : `📅 ${fmtDT(f.startTime)} → ${fmtDT(f.endTime)}　${f.totalHours}小時`;
                         return `
                         <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 space-y-2">
                             <div class="flex justify-between items-center">
@@ -933,7 +1042,7 @@
                             </div>
                             <div class="text-xs text-gray-400">申請日期：${applyDateStr}</div>
                             <div class="text-xs text-gray-600">
-                                📅 ${fmtDT(f.startTime)} → ${fmtDT(f.endTime)}　${f.totalHours}小時
+                                ${timeLine}
                             </div>
                             <div class="flex justify-between items-center text-xs text-gray-400">
                                 <span>${f.reason}</span>

@@ -101,6 +101,7 @@
             <div class="flex gap-2 mb-4">
                 <button onclick="switchPendingSubTab('leave')" id="btn-pending-leave" class="pending-subtab-btn bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all">請假審核</button>
                 <button onclick="switchPendingSubTab('ot')" id="btn-pending-ot" class="pending-subtab-btn bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium transition-all">加班審核</button>
+                <button onclick="switchPendingSubTab('forgotclock')" id="btn-pending-forgotclock" class="pending-subtab-btn bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium transition-all">忘打卡審核</button>
             </div>
             <div id="pending-leave-subtab" class="table-container">
                 <table class="w-full text-left border-collapse">
@@ -129,6 +130,20 @@
                         </tr>
                     </thead>
                     <tbody id="pending-ot-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
+                </table>
+            </div>
+            <!-- 2026/6/30新增：忘打卡審核子頁籤 -->
+            <div id="pending-forgotclock-subtab" class="table-container hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-sm font-semibold border-b border-gray-100">
+                            <th class="p-3">申請人</th>
+                            <th class="p-3">補登類型與時間</th>
+                            <th class="p-3">事由 / 備註</th>
+                            <th class="p-3 text-center">審核決策</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pending-forgotclock-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
                 </table>
             </div>
         </div>
@@ -501,6 +516,7 @@
                         <option value="">全部</option>
                         <option value="請假">請假</option>
                         <option value="加班">加班</option>
+                        <option value="忘打卡">忘打卡</option>
                     </select>
                 </div>
                 <div class="flex items-center gap-1.5">
@@ -523,6 +539,10 @@
                         <optgroup label="加班類型" id="reviewed-subtype-ot-group">
                             <option value="平日加班">平日加班</option>
                             <option value="休息日加班">休息日加班</option>
+                        </optgroup>
+                        <optgroup label="補登類型" id="reviewed-subtype-forgotclock-group">
+                            <option value="上班">上班</option>
+                            <option value="下班">下班</option>
                         </optgroup>
                     </select>
                 </div>
@@ -1042,21 +1062,25 @@
             });
         }
 
-        // 2026/6/26新增：「即時待審名單」子頁籤切換（請假審核 / 加班審核）
+        // 2026/6/26新增：「即時待審名單」子頁籤切換（請假審核 / 加班審核 / 忘打卡審核）
         function switchPendingSubTab(which) {
             const activeCls = 'pending-subtab-btn bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all';
             const inactiveCls = 'pending-subtab-btn bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg text-sm font-medium transition-all';
             document.getElementById('pending-leave-subtab').classList.toggle('hidden', which !== 'leave');
             document.getElementById('pending-ot-subtab').classList.toggle('hidden', which !== 'ot');
+            document.getElementById('pending-forgotclock-subtab').classList.toggle('hidden', which !== 'forgotclock');
             document.getElementById('btn-pending-leave').className = which === 'leave' ? activeCls : inactiveCls;
             document.getElementById('btn-pending-ot').className = which === 'ot' ? activeCls : inactiveCls;
+            document.getElementById('btn-pending-forgotclock').className = which === 'forgotclock' ? activeCls : inactiveCls;
         }
 
         function loadPendingForms() {
             const leaveBody = document.getElementById('pending-leave-table-body');
             const otBody = document.getElementById('pending-ot-table-body');
+            const fcBody = document.getElementById('pending-forgotclock-table-body');
             leaveBody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
             otBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
+            fcBody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
             const url = `${GAS_WEB_APP_URL}?action=getPendingForms&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
             fetch(url)
                 .then(res => res.json())
@@ -1064,6 +1088,7 @@
                     if (res.status !== "success") {
                         leaveBody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">載入失敗</td></tr>`;
                         otBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-gray-400">載入失敗</td></tr>`;
+                        fcBody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-gray-400">載入失敗</td></tr>`;
                         return;
                     }
 
@@ -1077,6 +1102,7 @@
 
                     const leaveForms = pendingVisible.filter(f => f.category === "請假");
                     const otForms = pendingVisible.filter(f => f.category === "加班");
+                    const fcForms = pendingVisible.filter(f => f.category === "忘打卡");
 
                     leaveBody.innerHTML = leaveForms.length ? leaveForms.map(form => `
                         <tr class="hover:bg-gray-50 border-b border-gray-50">
@@ -1102,10 +1128,22 @@
                                 <button onclick="executeReview('${form.formId}','已拒絕','加班')" class="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium">✗ 駁回</button>
                             </td>
                         </tr>`).join('') : `<tr><td colspan="5" class="text-center p-4 text-gray-400">目前無待審核加班單</td></tr>`;
+
+                    fcBody.innerHTML = fcForms.length ? fcForms.map(form => `
+                        <tr class="hover:bg-gray-50 border-b border-gray-50">
+                            <td class="p-3 font-medium">${form.name}<br><span class="text-xs text-gray-400">${form.empId}</span></td>
+                            <td class="p-3 text-xs text-gray-600">${form.subType} | ${form.startTime}</td>
+                            <td class="p-3 text-xs text-gray-600">${form.reason || '-'}</td>
+                            <td class="p-3 text-center">
+                                <button onclick="executeReview('${form.formId}','已核准','忘打卡')" class="bg-green-600 hover:bg-green-700 text-white px-2.5 py-1.5 rounded-lg mr-1 text-xs font-medium">✓ 准許</button>
+                                <button onclick="executeReview('${form.formId}','已拒絕','忘打卡')" class="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium">✗ 駁回</button>
+                            </td>
+                        </tr>`).join('') : `<tr><td colspan="4" class="text-center p-4 text-gray-400">目前無待審核忘打卡申請</td></tr>`;
                 })
                 .catch(err => {
                     leaveBody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">載入失敗：${err}</td></tr>`;
                     otBody.innerHTML = `<tr><td colspan="5" class="text-center p-4 text-red-400">載入失敗：${err}</td></tr>`;
+                    fcBody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-red-400">載入失敗：${err}</td></tr>`;
                 });
         }
 
@@ -1307,10 +1345,12 @@
             countEl.innerText = `共 ${list.length} 筆`;
             list.forEach(f => {
                 const statusColor = f.status === "已核准" ? "text-emerald-600 bg-emerald-50" : "text-red-500 bg-red-50";
+                // 忘打卡只有單一補登時間，不顯示「~結束時間（時數）」
+                const timeDetail = f.category === '忘打卡' ? f.startTime : `${f.startTime} ~ ${f.endTime}（${f.totalHours}hr）`;
                 tbody.innerHTML += `<tr class="border-b border-gray-50">
                     <td class="p-3">${f.name}<br><span class="text-xs text-gray-400 font-mono">${f.empId}</span></td>
                     <td class="p-3">${f.category}</td>
-                    <td class="p-3 text-sm">${f.subType}<br><span class="text-xs text-gray-400">${f.startTime} ~ ${f.endTime}（${f.totalHours}hr）</span></td>
+                    <td class="p-3 text-sm">${f.subType}<br><span class="text-xs text-gray-400">${timeDetail}</span></td>
                     <td class="p-3 text-xs text-gray-500">${f.reason || '-'}</td>
                     <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}">${f.status}</span></td>
                     <td class="p-3">${f.reviewer || '-'}</td>
@@ -1324,8 +1364,10 @@
             const subSelect   = document.getElementById('reviewed-filter-subtype');
             const leaveGroup  = document.getElementById('reviewed-subtype-leave-group');
             const otGroup     = document.getElementById('reviewed-subtype-ot-group');
+            const fcGroup     = document.getElementById('reviewed-subtype-forgotclock-group');
             leaveGroup.style.display = (!categoryVal || categoryVal === '請假') ? '' : 'none';
             otGroup.style.display    = (!categoryVal || categoryVal === '加班') ? '' : 'none';
+            fcGroup.style.display    = (!categoryVal || categoryVal === '忘打卡') ? '' : 'none';
             // 若目前選的細分項目不屬於可見群組，重設為「全部」
             const visibleOptions = Array.from(subSelect.options).filter(o => o.closest('optgroup') ? o.closest('optgroup').style.display !== 'none' : true);
             if (!visibleOptions.some(o => o.value === subSelect.value)) {
