@@ -247,6 +247,11 @@
                 </button>
             </div>
             <div id="payroll-preview" class="hidden">
+                <!-- 2026/7/2新增：所別覆蓋提示（員工所別為空、由管理員手動指定所別時顯示） -->
+                <div id="pv-branch-override-notice" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 mb-3">
+                    <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                    此員工所別欄位為空，本次試算套用的是 <strong id="pv-branch-override-name"></strong> 的薪資設定。
+                </div>
                 <p class="text-xs text-indigo-500 bg-indigo-50 rounded-lg p-2 mb-3"><i class="fa-solid fa-pen-to-square mr-1"></i>底薪／曠職扣款／請假扣款／加班費／應發總額皆可手動修改；若修改的是「已存在」的薪資紀錄，送出時系統會要求填寫調整原因，並自動記錄到「薪資調整紀錄」頁籤。</p>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 text-sm">
                     <div class="bg-gray-50 rounded-xl p-3">
@@ -580,6 +585,19 @@
                     </thead>
                     <tbody id="reviewed-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2026/7/2新增：薪資計算 — 員工所別為空時跳出此視窗，讓管理員選擇套用哪一所別的薪資設定 -->
+    <div id="branch-override-modal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6">
+            <h3 class="text-base font-bold text-gray-800 mb-1">員工所別未設定</h3>
+            <p class="text-sm text-gray-500 mb-4">此員工的員工檔案中「所別」欄位為空白，請選擇要套用哪一所別的薪資設定（假別扣薪方式、加班時薪）：</p>
+            <div id="branch-override-options" class="space-y-2 mb-5 text-sm"></div>
+            <div class="flex gap-2 justify-end">
+                <button type="button" onclick="cancelBranchOverride()" class="px-4 py-2 rounded-lg border border-gray-200 text-gray-600 text-sm hover:bg-gray-50">取消</button>
+                <button type="button" onclick="confirmBranchOverride()" class="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700">套用並試算</button>
             </div>
         </div>
     </div>
@@ -1584,18 +1602,61 @@
         // ===================== 薪資計算 =====================
         let lastPayrollPreview = null; // 暫存試算結果，供「確認入帳」使用
 
+        // 2026/7/2新增：所別覆蓋 Modal 相關狀態與函式
         function previewPayroll() {
-            const yearMonth = document.getElementById('payroll-yearMonth').value; // yyyy-MM
+            const yearMonth = document.getElementById('payroll-yearMonth').value;
             const empId = document.getElementById('payroll-empId').value;
             if (!yearMonth || !empId) { alert('請選擇年月與員工'); return; }
 
-            const url = `${GAS_WEB_APP_URL}?action=calcPayroll&lineUid=${encodeURIComponent(currentAdminLineUid)}&empId=${encodeURIComponent(empId)}&yearMonth=${encodeURIComponent(yearMonth)}&_t=${new Date().getTime()}`;
+            // 若員工所別為空，先跳出選所別 Modal
+            const emp = hrProfilesData.find(e => e.empId.replace(/^'/, '').trim() === empId);
+            if (emp && !emp.branch) {
+                const branches = [...new Set((hrProfilesData || []).map(e => e.branch).filter(b => b))].sort();
+                const optionsEl = document.getElementById('branch-override-options');
+                optionsEl.innerHTML = branches.length
+                    ? branches.map((b, i) =>
+                        `<label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-gray-50 border border-gray-100">
+                            <input type="radio" name="branch-override-radio" value="${b}" ${i === 0 ? 'checked' : ''} class="accent-indigo-600">
+                            <span>${b}</span>
+                        </label>`).join('')
+                    : '<p class="text-gray-400 text-xs">找不到可用所別，請先在員工檔案中設定所別。</p>';
+                document.getElementById('branch-override-modal').classList.remove('hidden');
+                return;
+            }
+
+            doPreviewPayroll('');
+        }
+
+        function confirmBranchOverride() {
+            const selected = document.querySelector('input[name="branch-override-radio"]:checked');
+            if (!selected) { alert('請選擇一個所別'); return; }
+            document.getElementById('branch-override-modal').classList.add('hidden');
+            doPreviewPayroll(selected.value);
+        }
+
+        function cancelBranchOverride() {
+            document.getElementById('branch-override-modal').classList.add('hidden');
+        }
+
+        function doPreviewPayroll(overrideBranch) {
+            const yearMonth = document.getElementById('payroll-yearMonth').value;
+            const empId = document.getElementById('payroll-empId').value;
+
+            const url = `${GAS_WEB_APP_URL}?action=calcPayroll&lineUid=${encodeURIComponent(currentAdminLineUid)}&empId=${encodeURIComponent(empId)}&yearMonth=${encodeURIComponent(yearMonth)}${overrideBranch ? '&overrideBranch=' + encodeURIComponent(overrideBranch) : ''}&_t=${new Date().getTime()}`;
             fetch(url).then(res => res.json()).then(res => {
                 if (res.status !== "success") { alert('試算失敗：' + res.message); return; }
                 const d = res.data;
                 lastPayrollPreview = d;
 
                 document.getElementById('payroll-preview').classList.remove('hidden');
+                // 2026/7/2新增：顯示/隱藏所別覆蓋提示
+                const overrideNotice = document.getElementById('pv-branch-override-notice');
+                if (d.branchOverridden) {
+                    document.getElementById('pv-branch-override-name').textContent = d.effectiveBranch;
+                    overrideNotice.classList.remove('hidden');
+                } else {
+                    overrideNotice.classList.add('hidden');
+                }
                 document.getElementById('pv-salary').value = d.salary;
                 document.getElementById('pv-dailyWage').innerText = d.dailyWage;
                 document.getElementById('pv-dailyWage-formula').innerText = d.dailyWageFormula || '';

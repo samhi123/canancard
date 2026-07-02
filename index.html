@@ -84,6 +84,20 @@
                 </button>
             </div>
 
+            <!-- 2026/7/2新增：打卡撤回提示列 — 打卡成功後 3 分鐘內可自行撤回 -->
+            <div id="revoke-clock-bar" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center justify-between gap-2">
+                <div class="text-sm text-amber-800 leading-snug">
+                    <span class="font-bold">剛才的<span id="revoke-clock-type"></span>打卡</span>
+                    <span class="text-xs text-amber-600 ml-1">按錯了嗎？</span>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                    <span id="revoke-countdown" class="text-xs text-amber-600 font-mono min-w-[36px] text-right">3:00</span>
+                    <button onclick="revokeLastClock()" class="bg-amber-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-amber-600 active:scale-95 transition-all whitespace-nowrap">
+                        撤回打卡
+                    </button>
+                </div>
+            </div>
+
             <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <h3 class="text-sm font-bold text-gray-700 mb-3 flex items-center">
                     <i class="fa-solid fa-history mr-2 text-indigo-500"></i>今日打卡狀態
@@ -223,7 +237,7 @@
                 <textarea id="form-reason" rows="3" placeholder="請輸入具體原因..." class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"></textarea>
             </div>
 
-            <button onclick="submitApplication()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-sm hover:bg-indigo-700 active:scale-98 transition-all text-sm">
+            <button id="btn-submit-application" onclick="submitApplication()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-sm hover:bg-indigo-700 active:scale-98 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                 送出申請單
             </button>
         </section>
@@ -277,6 +291,9 @@
         // 直接從已載入的 env.js (SYSTEM_ENV) 讀取設定，不再 fetch env.txt
         let GAS_WEB_APP_URL = (typeof SYSTEM_ENV !== "undefined") ? SYSTEM_ENV.GAS_WEB_APP_URL : "";
         let currentFormType = 'leave';
+        let isSubmitting = false;   // 2026/6/30新增：防止使用者按太快重複送出申請單（請假/加班/忘打卡共用）
+        let revokeTimer = null;     // 2026/7/2新增：打卡撤回倒數計時器
+        let revokeClockType = "";   // 2026/7/2新增：記錄本次打卡類型，供撤回 API 驗證用
         let leaveSettingsCache = {}; // { 假別名稱: { payType, minUnitHours } }，登入後快取一次，供請假最小單位驗證使用
 
         // 預設員工資訊（當 LINE LIFF 順利初始化後，會自動被真實 LINE 個資覆蓋）
@@ -587,7 +604,9 @@
                         listEl.innerHTML = detail.map(item =>
                             `<div class="flex justify-between items-center">
                                 <span class="text-gray-600">${item.subType}</span>
-                                <span class="font-medium text-gray-800">${item.days} 天</span>
+                                <span class="font-medium text-gray-800">${item.days} 天
+                                    <span class="text-xs text-gray-400 ml-1">(${item.hours} hr)</span>
+                                </span>
                             </div>`
                         ).join('');
                     }
@@ -750,6 +769,7 @@
             })
             .then(() => {
                 alert(`🎉 系統已成功寫入：${type}打卡紀錄！\n打卡員工：${currentEmployee.name}\n時間：${nowTime}`);
+                startRevokeCountdown(type); // 2026/7/2新增：打卡成功後啟動 3 分鐘撤回視窗
                 // 先立即更新畫面，再延遲 2 秒從 GAS 確認最新狀態
                 if (type === '上班') {
                     document.getElementById('todayClockIn').innerText = `${nowTime} (成功)`;
@@ -782,6 +802,66 @@
         }
 
         // 2026/6/30新增：忘打卡申請送出（與請假/加班送出邏輯獨立，欄位不同）
+        // 2026/6/30新增：送出申請單期間鎖定按鈕，避免使用者連續點擊造成重複送出多筆申請
+        function lockSubmitButton() {
+            isSubmitting = true;
+            const btn = document.getElementById('btn-submit-application');
+            if (btn) btn.disabled = true;
+        }
+        function unlockSubmitButton() {
+            isSubmitting = false;
+            const btn = document.getElementById('btn-submit-application');
+            if (btn) btn.disabled = false;
+        }
+
+        // 2026/7/2新增：打卡成功後啟動 3 分鐘倒數撤回視窗
+        function startRevokeCountdown(type) {
+            revokeClockType = type;
+            const bar = document.getElementById('revoke-clock-bar');
+            const typeEl = document.getElementById('revoke-clock-type');
+            const countdownEl = document.getElementById('revoke-countdown');
+            if (!bar || !typeEl || !countdownEl) return;
+
+            typeEl.textContent = type;
+            bar.classList.remove('hidden');
+
+            if (revokeTimer) clearInterval(revokeTimer);
+            let remaining = 3 * 60; // 180 秒
+
+            function tick() {
+                const m = Math.floor(remaining / 60);
+                const s = remaining % 60;
+                countdownEl.textContent = m + ':' + String(s).padStart(2, '0');
+                if (remaining <= 0) {
+                    clearInterval(revokeTimer);
+                    revokeTimer = null;
+                    bar.classList.add('hidden');
+                    return;
+                }
+                remaining--;
+            }
+            tick();
+            revokeTimer = setInterval(tick, 1000);
+        }
+
+        // 2026/7/2新增：呼叫後端撤回最後一筆打卡（3分鐘時限由伺服器端驗證）
+        function revokeLastClock() {
+            if (!currentEmployee || !currentEmployee.empId) return;
+            fetch(`${GAS_WEB_APP_URL}?action=deleteLastClock&empId=${encodeURIComponent(currentEmployee.empId)}&type=${encodeURIComponent(revokeClockType)}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        if (revokeTimer) { clearInterval(revokeTimer); revokeTimer = null; }
+                        document.getElementById('revoke-clock-bar').classList.add('hidden');
+                        alert(`✅ 已成功撤回剛才的${revokeClockType}打卡，請重新確認後再打卡。`);
+                        loadTodayAttendance();
+                    } else {
+                        alert(`⚠️ 撤回失敗：${res.message || '請稍後再試'}`);
+                    }
+                })
+                .catch(() => alert('撤回連線錯誤，請稍後再試。'));
+        }
+
         function submitForgotClockApplication() {
             const fcType = document.getElementById('form-forgotclock-type').value;
             const fcDateTimeRaw = document.getElementById('form-forgotclock-datetime').value;
@@ -804,12 +884,15 @@
 
             const fcDateTime = fcDateTimeRaw.replace("T", " ");
 
+            lockSubmitButton(); // 防止檢查/送出過程中使用者重複點擊造成多筆申請
+
             // 送出前先檢查前後10分鐘內是否已有打卡紀錄（一般GET，可讀取回應）
             fetch(`${GAS_WEB_APP_URL}?action=checkClockConflict&empId=${encodeURIComponent(currentEmployee.empId)}&dateTime=${encodeURIComponent(fcDateTime)}`)
                 .then(r => r.json())
                 .then(res => {
                     if (res.status === 'success' && res.data && res.data.conflict) {
                         alert(`⚠️ 無法申請：該時間前後10分鐘內已有打卡紀錄\n（${res.data.existingType} ${res.data.existingDateTime}）`);
+                        unlockSubmitButton();
                         return;
                     }
 
@@ -834,21 +917,25 @@
                             const el = document.getElementById(id);
                             if (el) { el.value = ""; setFieldError(id, false); }
                         });
+                        unlockSubmitButton();
                         switchPage('history');
                     })
                     .catch(error => {
                         console.error("API 錯誤:", error);
                         alert("表單送出失敗。");
+                        unlockSubmitButton();
                     });
                 })
                 .catch(error => {
                     console.error("衝突檢查錯誤:", error);
                     alert("檢查打卡衝突時發生錯誤，請稍後再試。");
+                    unlockSubmitButton();
                 });
         }
 
         function submitApplication() {
             if (!GAS_WEB_APP_URL) { alert("❌ 連線失敗：尚未載入設定網址。"); return; }
+            if (isSubmitting) return; // 2026/6/30新增：送出處理中，忽略重複點擊（防止按太快送出多筆申請）
 
             if (currentFormType === 'forgotclock') {
                 submitForgotClockApplication();
@@ -925,6 +1012,8 @@
                 completedTasks: currentFormType === 'overtime' ? completedTasks : ""
             };
 
+            lockSubmitButton(); // 2026/6/30新增：送出期間鎖定按鈕，避免按太快造成重複送出多筆申請
+
             fetch(GAS_WEB_APP_URL, {
                 method: "POST",
                 mode: "no-cors",
@@ -938,10 +1027,12 @@
                     const el = document.getElementById(id);
                     if (el) { el.value = ""; setFieldError(id, false); }
                 });
+                unlockSubmitButton();
                 switchPage('history');
             })
             .catch(error => {
                 console.error("API 錯誤:", error);
+                unlockSubmitButton();
                 alert("表單送出失敗。");
             });
         }
