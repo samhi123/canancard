@@ -1098,10 +1098,13 @@
                             statusLabel = '⏳ 待審核';
                         } else if (f.status === '已核准') {
                             statusColor = 'bg-emerald-100 text-emerald-700';
-                            statusLabel = '已核准';
+                            statusLabel = '✅ 已核准';
                         } else if (f.status === '已拒絕') {
                             statusColor = 'bg-gray-100 text-gray-500';
                             statusLabel = '已拒絕';
+                        } else if (f.status === '已撤回') {
+                            statusColor = 'bg-orange-100 text-orange-600';
+                            statusLabel = '已撤回';
                         } else {
                             statusColor = 'bg-gray-100 text-gray-500';
                             statusLabel = f.status;
@@ -1115,8 +1118,15 @@
                         }
                         const catColor  = f.category === '請假' ? 'bg-indigo-100 text-indigo-700' : (f.category === '忘打卡' ? 'bg-teal-100 text-teal-700' : 'bg-orange-100 text-orange-700');
                         const canDelete = f.status === '待審核';
+                        // 2026/7/7新增：已核准且開始時間尚未到達（請假/加班）可撤回核准
+                        const canRevoke = f.status === '已核准'
+                            && (f.category === '請假' || f.category === '加班')
+                            && f.startTime
+                            && new Date(f.startTime.replace(/-/g, '/')) > new Date();
                         const deleteBtn = canDelete
                             ? `<button onclick="deleteForm('${f.formId}','${f.category}')" class="text-red-400 hover:text-red-600 text-xs px-2 py-0.5 rounded border border-red-200 hover:border-red-400 transition">🗑 撤回</button>`
+                            : canRevoke
+                            ? `<button onclick="revokeApprovedForm('${f.formId}','${f.category}','${f.startTime}')" class="text-orange-500 hover:text-orange-700 text-xs px-2 py-0.5 rounded border border-orange-300 hover:border-orange-500 transition">↩ 撤回核准</button>`
                             : '';
                         // 忘打卡只有單一補登時間，不顯示「開始→結束 時數」
                         const timeLine = f.category === '忘打卡'
@@ -1145,6 +1155,29 @@
                 .catch(() => {
                     container.innerHTML = '<div class="text-center text-red-400 text-sm py-8">載入失敗，請稍後再試</div>';
                 });
+        }
+
+        // 2026/7/7新增：撤回已核准的請假/加班申請（限開始時間尚未到達者）
+        function revokeApprovedForm(formId, category, startTime) {
+            const startDt = new Date(startTime.replace(/-/g, '/'));
+            if (startDt <= new Date()) {
+                alert('⚠️ 申請開始時間已過，無法自行撤回，請聯繫主管。');
+                return;
+            }
+            const startFmt = startTime.replace('T', ' ');
+            if (!confirm(`確定要撤回已核准的「${category}」申請嗎？\n（開始時間：${startFmt}）\n\n撤回後申請將變為「已撤回」狀態，主管會收到通知。`)) return;
+
+            fetch(`${GAS_WEB_APP_URL}?action=revokeApprovedForm&empId=${encodeURIComponent(currentEmployee.empId)}&formId=${encodeURIComponent(formId)}&category=${encodeURIComponent(category)}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        alert('✅ 已成功撤回核准申請，主管已收到通知。');
+                        loadMyForms();
+                    } else {
+                        alert(`⚠️ 撤回失敗：${res.message || '請稍後再試'}`);
+                    }
+                })
+                .catch(() => alert('撤回連線失敗，請稍後再試。'));
         }
 
         function deleteForm(formId, category) {
