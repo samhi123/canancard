@@ -567,6 +567,11 @@
                     const d = res.data;
                     const inEl  = document.getElementById('todayClockIn');
                     const outEl = document.getElementById('todayClockOut');
+                    // 先重設（撤回後資料可能為空，需清除舊顯示）
+                    inEl.innerText  = '尚未打卡';
+                    inEl.className  = 'font-medium text-gray-400';
+                    outEl.innerText = '尚未打卡';
+                    outEl.className = 'font-medium text-gray-400';
                     if (d.clockIn) {
                         inEl.innerText  = `${d.clockIn} (成功)`;
                         inEl.className  = "font-medium text-emerald-600";
