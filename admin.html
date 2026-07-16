@@ -576,18 +576,28 @@
                 </button>
             </div>
             <p id="reviewed-count" class="text-xs text-gray-400 mb-2"></p>
-            <div class="table-container">
-                <table class="w-full text-left border-collapse">
+            <div class="w-full overflow-hidden">
+                <table class="w-full text-left border-collapse table-fixed">
+                    <colgroup>
+                        <col style="width:10%">  <!-- 申請人 -->
+                        <col style="width:6%">   <!-- 類別 -->
+                        <col style="width:8%">   <!-- 審核結果 -->
+                        <col style="width:7%">   <!-- 操作 -->
+                        <col style="width:22%">  <!-- 假別/加班類型與時間 -->
+                        <col style="width:25%">  <!-- 事由（截斷） -->
+                        <col style="width:12%">  <!-- 審核人 -->
+                        <col style="width:10%">  <!-- 審核時間 -->
+                    </colgroup>
                     <thead>
                         <tr class="bg-gray-50 text-gray-600 text-sm font-semibold border-b border-gray-100">
                             <th class="p-3">申請人</th>
                             <th class="p-3">類別</th>
+                            <th class="p-3 text-center">審核結果</th>
+                            <th class="p-3 text-center">操作</th>
                             <th class="p-3">假別/加班類型與時間</th>
                             <th class="p-3">事由</th>
-                            <th class="p-3 text-center">審核結果</th>
                             <th class="p-3">審核人</th>
                             <th class="p-3">審核時間</th>
-                            <th class="p-3 text-center">操作</th>
                         </tr>
                     </thead>
                     <tbody id="reviewed-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
@@ -1392,12 +1402,12 @@
                 tbody.innerHTML += `<tr class="border-b border-gray-50 ${rowClass}">
                     <td class="p-3">${f.name}<br><span class="text-xs text-gray-400 font-mono">${f.empId}</span></td>
                     <td class="p-3">${f.category}</td>
-                    <td class="p-3 text-sm">${f.subType}<br><span class="text-xs text-gray-400">${timeDetail}</span></td>
-                    <td class="p-3 text-xs text-gray-500">${f.reason || '-'}</td>
                     <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}">${f.status}</span></td>
+                    <td class="p-3 text-center">${deleteBtn}</td>
+                    <td class="p-3 text-sm max-w-0"><div class="truncate font-medium" title="${f.subType}">${f.subType}</div><div class="truncate text-xs text-gray-400" title="${timeDetail}">${timeDetail}</div></td>
+                    <td class="p-3 text-xs text-gray-500 max-w-0"><div class="truncate" title="${(f.reason || '-').replace(/"/g, '&quot;')}">${f.reason || '-'}</div></td>
                     <td class="p-3">${f.reviewer || '-'}</td>
                     <td class="p-3 text-xs">${f.reviewTime ? formatDateROC(f.reviewTime) : '-'}</td>
-                    <td class="p-3 text-center">${deleteBtn}</td>
                 </tr>`;
             });
         }
