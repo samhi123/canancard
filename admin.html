@@ -576,17 +576,20 @@
                 </button>
             </div>
             <p id="reviewed-count" class="text-xs text-gray-400 mb-2"></p>
-            <div class="w-full overflow-hidden">
+            <!-- 手機版：卡片排版 -->
+            <div id="reviewed-cards" class="md:hidden space-y-2"></div>
+            <!-- 桌機版：表格排版 -->
+            <div class="hidden md:block w-full overflow-hidden">
                 <table class="w-full text-left border-collapse table-fixed">
                     <colgroup>
-                        <col style="width:10%">  <!-- 申請人 -->
-                        <col style="width:6%">   <!-- 類別 -->
-                        <col style="width:8%">   <!-- 審核結果 -->
-                        <col style="width:7%">   <!-- 操作 -->
-                        <col style="width:22%">  <!-- 假別/加班類型與時間 -->
-                        <col style="width:25%">  <!-- 事由（截斷） -->
-                        <col style="width:12%">  <!-- 審核人 -->
-                        <col style="width:10%">  <!-- 審核時間 -->
+                        <col style="width:10%">
+                        <col style="width:6%">
+                        <col style="width:8%">
+                        <col style="width:7%">
+                        <col style="width:22%">
+                        <col style="width:25%">
+                        <col style="width:12%">
+                        <col style="width:10%">
                     </colgroup>
                     <thead>
                         <tr class="bg-gray-50 text-gray-600 text-sm font-semibold border-b border-gray-100">
@@ -1372,9 +1375,12 @@
         function renderReviewedTable(list) {
             const tbody = document.getElementById('reviewed-table-body');
             const countEl = document.getElementById('reviewed-count');
+            const cards = document.getElementById('reviewed-cards');
             tbody.innerHTML = "";
+            cards.innerHTML = "";
             if (!list || list.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-gray-400">無符合條件的審核紀錄</td></tr>`;
+                cards.innerHTML = `<p class="text-center p-4 text-gray-400 text-sm">無符合條件的審核紀錄</p>`;
                 countEl.innerText = "";
                 return;
             }
@@ -1389,26 +1395,43 @@
                 } else {
                     statusColor = "text-red-500 bg-red-50";
                 }
-                // 忘打卡只有單一補登時間，不顯示「~結束時間（時數）」
                 const timeDetail = f.category === '忘打卡' ? f.startTime : `${f.startTime} ~ ${f.endTime}（${f.totalHours}hr）`;
-                // 刪除按鈕：僅限 已核准 的 請假/加班（忘打卡不開放刪除）
                 const canDelete = f.status === "已核准" && (f.category === "請假" || f.category === "加班");
                 const deleteBtn = canDelete
                     ? `<button onclick="deleteReviewedForm('${f.formId}','${f.category}','${f.name}','${f.subType}')"
                           class="text-xs text-red-500 border border-red-200 hover:bg-red-50 px-2 py-1 rounded-lg transition-all whitespace-nowrap">
                           <i class="fa-solid fa-trash-can mr-1"></i>刪除
                        </button>`
-                    : '-';
+                    : '';
+
+                // 桌機表格列
                 tbody.innerHTML += `<tr class="border-b border-gray-50 ${rowClass}">
                     <td class="p-3">${f.name}<br><span class="text-xs text-gray-400 font-mono">${f.empId}</span></td>
                     <td class="p-3">${f.category}</td>
                     <td class="p-3 text-center"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}">${f.status}</span></td>
-                    <td class="p-3 text-center">${deleteBtn}</td>
+                    <td class="p-3 text-center">${deleteBtn || '-'}</td>
                     <td class="p-3 text-sm max-w-0"><div class="truncate font-medium" title="${f.subType}">${f.subType}</div><div class="truncate text-xs text-gray-400" title="${timeDetail}">${timeDetail}</div></td>
                     <td class="p-3 text-xs text-gray-500 max-w-0"><div class="truncate" title="${(f.reason || '-').replace(/"/g, '&quot;')}">${f.reason || '-'}</div></td>
                     <td class="p-3">${f.reviewer || '-'}</td>
                     <td class="p-3 text-xs">${f.reviewTime ? formatDateROC(f.reviewTime) : '-'}</td>
                 </tr>`;
+
+                // 手機卡片
+                cards.innerHTML += `<div class="border border-gray-100 rounded-xl p-3 bg-white shadow-sm ${rowClass}">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <div class="font-medium text-sm text-gray-800">${f.name} <span class="text-xs text-gray-400 font-mono">${f.empId}</span>
+                            <span class="ml-1 text-xs text-gray-400">${f.category}</span>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${statusColor}">${f.status}</span>
+                    </div>
+                    <div class="text-sm font-medium text-gray-700">${f.subType}</div>
+                    <div class="text-xs text-gray-400 mb-1">${timeDetail}</div>
+                    ${f.reason ? `<div class="text-xs text-gray-500 line-clamp-2 mb-1.5">${f.reason}</div>` : ''}
+                    <div class="flex items-center justify-between mt-1.5">
+                        <span class="text-xs text-gray-400">${f.reviewer || ''} ${f.reviewTime ? formatDateROC(f.reviewTime) : ''}</span>
+                        ${deleteBtn}
+                    </div>
+                </div>`;
             });
         }
 
