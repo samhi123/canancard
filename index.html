@@ -232,6 +232,52 @@
                 <textarea id="form-completed-tasks" rows="2" placeholder="請簡述本次加班完成的工作內容..." class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"></textarea>
             </div>
 
+            <!-- 2026/7/20新增：加班工作項目（OT 專屬，請假/忘打卡時隱藏） -->
+            <div id="ot-work-items-block" class="hidden">
+                <label class="block text-sm font-bold text-gray-700 mb-2">加班工作項目<span class="text-gray-400 font-normal text-xs ml-1">（至少選 1 項）</span></label>
+                <div class="space-y-2">
+                    <div class="flex gap-2 items-center">
+                        <select id="ot-work-type-1" onchange="onOtWorkTypeChange(1)"
+                            class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="">無</option>
+                            <option value="交屋袋">交屋袋</option>
+                            <option value="報稅">報稅</option>
+                            <option value="開案">開案</option>
+                            <option value="行政作業">行政作業</option>
+                            <option value="過戶文件">過戶文件</option>
+                        </select>
+                        <input type="text" id="ot-obligor-1" placeholder="義務人"
+                            class="hidden w-28 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <select id="ot-work-type-2" onchange="onOtWorkTypeChange(2)"
+                            class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="">無</option>
+                            <option value="交屋袋">交屋袋</option>
+                            <option value="報稅">報稅</option>
+                            <option value="開案">開案</option>
+                            <option value="行政作業">行政作業</option>
+                            <option value="過戶文件">過戶文件</option>
+                        </select>
+                        <input type="text" id="ot-obligor-2" placeholder="義務人"
+                            class="hidden w-28 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="flex gap-2 items-center">
+                        <select id="ot-work-type-3" onchange="onOtWorkTypeChange(3)"
+                            class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+                            <option value="">無</option>
+                            <option value="交屋袋">交屋袋</option>
+                            <option value="報稅">報稅</option>
+                            <option value="開案">開案</option>
+                            <option value="行政作業">行政作業</option>
+                            <option value="過戶文件">過戶文件</option>
+                        </select>
+                        <input type="text" id="ot-obligor-3" placeholder="義務人"
+                            class="hidden w-28 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+                    </div>
+                </div>
+            </div>
+
             <div>
                 <label class="block text-sm font-bold text-gray-700 mb-1">事由 / 備註說明</label>
                 <textarea id="form-reason" rows="3" placeholder="請輸入具體原因..." class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-indigo-500"></textarea>
@@ -337,7 +383,7 @@
 
     <script>
         // --- 0. 版本號（每次更新請修改此處）---
-        const APP_VERSION = "v1.0.8";
+        const APP_VERSION = "v1.0.9";
 
         // --- 1. 全域變數宣告 ---
         // 直接從已載入的 env.js (SYSTEM_ENV) 讀取設定，不再 fetch env.txt
@@ -722,6 +768,7 @@
             const completedTasksBlock = document.getElementById('completed-tasks-block');
             const startEndBlock = document.getElementById('start-end-time-block');
             const totalHoursBlock = document.getElementById('total-hours-block');
+            const otWorkItemsBlock = document.getElementById('ot-work-items-block');
 
             const activeClass = "py-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold text-sm transition";
             const inactiveClass = "py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm transition";
@@ -736,6 +783,7 @@
                 startEndBlock.classList.remove('hidden');
                 totalHoursBlock.classList.remove('hidden');
                 if (completedTasksBlock) completedTasksBlock.classList.add('hidden');
+                if (otWorkItemsBlock) otWorkItemsBlock.classList.add('hidden');
                 onLeaveSubTypeChange();
             } else if (type === 'overtime') {
                 leaveBlock.classList.add('hidden');
@@ -744,18 +792,46 @@
                 startEndBlock.classList.remove('hidden');
                 totalHoursBlock.classList.remove('hidden');
                 if (completedTasksBlock) completedTasksBlock.classList.remove('hidden');
+                if (otWorkItemsBlock) otWorkItemsBlock.classList.remove('hidden');
                 document.getElementById('annual-leave-info').classList.add('hidden');
                 document.getElementById('leave-unit-hint').classList.add('hidden');
-                loadOvertimeBalance(); // 2026/6/26新增：切換到加班申請時自動帶出當月/當週已加班時數
+                loadOvertimeBalance();
             } else if (type === 'forgotclock') {
-                // 2026/6/30新增：忘打卡申請只需補登類型+單一日期時間，不需開始/結束時間與合計時數
                 leaveBlock.classList.add('hidden');
                 otBlock.classList.add('hidden');
                 forgotClockBlock.classList.remove('hidden');
                 startEndBlock.classList.add('hidden');
                 totalHoursBlock.classList.add('hidden');
                 if (completedTasksBlock) completedTasksBlock.classList.add('hidden');
+                if (otWorkItemsBlock) otWorkItemsBlock.classList.add('hidden');
             }
+        }
+
+        // 2026/7/20新增：加班工作項目 — 義務人欄顯示/隱藏
+        function onOtWorkTypeChange(n) {
+            const sel = document.getElementById(`ot-work-type-${n}`);
+            const inp = document.getElementById(`ot-obligor-${n}`);
+            if (sel.value) {
+                inp.classList.remove('hidden');
+            } else {
+                inp.classList.add('hidden');
+                inp.value = '';
+            }
+        }
+
+        // 2026/7/20新增：將 3 個工作項目 + 備註組合成 reason 字串
+        function buildOtReason() {
+            const items = [];
+            for (let i = 1; i <= 3; i++) {
+                const type    = document.getElementById(`ot-work-type-${i}`).value;
+                const obligor = document.getElementById(`ot-obligor-${i}`).value.trim();
+                if (type) {
+                    items.push(obligor ? `【${type}】${obligor}` : `【${type}】`);
+                }
+            }
+            const notes = document.getElementById('form-reason').value.trim();
+            if (items.length === 0) return notes;
+            return notes ? `${items.join(' / ')}　備註：${notes}` : items.join(' / ');
         }
 
         function handleClock(type, btnEl) {
@@ -976,6 +1052,7 @@
                             if (el) { el.value = ""; setFieldError(id, false); }
                         });
                         unlockSubmitButton();
+                        currentHistoryTab = 'fc'; // 送出後自動切至忘打卡 tab
                         switchPage('history');
                     })
                     .catch(error => {
@@ -1003,11 +1080,14 @@
             const startTime  = document.getElementById('form-start-time').value;
             const endTime    = document.getElementById('form-end-time').value;
             const totalHours = document.getElementById('form-hours').value;
-            const reason     = document.getElementById('form-reason').value.trim();
             const subType    = document.getElementById('form-sub-type').value;
             const otType     = document.getElementById('form-ot-type').value;
             const completedTasksEl = document.getElementById('form-completed-tasks');
             const completedTasks = completedTasksEl ? completedTasksEl.value.trim() : "";
+
+            // 2026/7/20：加班申請 reason 由工作項目+備註組合，請假維持直接讀 textarea
+            const isOT = currentFormType === 'overtime';
+            const reason = isOT ? buildOtReason() : document.getElementById('form-reason').value.trim();
 
             // 逐欄清除舊錯誤狀態
             ['form-start-time', 'form-end-time', 'form-hours', 'form-reason'].forEach(id => setFieldError(id, false));
@@ -1031,7 +1111,6 @@
                 setFieldError('form-hours', true);
                 errors.push('請填寫「合計時數」且須大於 0');
             } else if (currentFormType === 'leave') {
-                // 依後台「假別設定」的最小單位，檢查時數是否達到最小門檻（須大於等於，非倍數限制）
                 const setting = leaveSettingsCache[subType];
                 const minUnit = setting ? setting.minUnitHours : 1;
                 if (Number(totalHours) < minUnit) {
@@ -1039,9 +1118,15 @@
                     errors.push(`「${subType}」的請假時數須大於等於 ${minUnit} 小時`);
                 }
             }
-            if (!reason) {
-                setFieldError('form-reason', true);
-                errors.push('請填寫「事由 / 備註說明」');
+            // 加班：驗證至少選 1 個工作項目；請假：驗證事由不可空白
+            if (isOT) {
+                const hasItem = [1,2,3].some(i => document.getElementById(`ot-work-type-${i}`).value);
+                if (!hasItem) errors.push('請至少選擇 1 項加班工作項目');
+            } else {
+                if (!reason) {
+                    setFieldError('form-reason', true);
+                    errors.push('請填寫「事由 / 備註說明」');
+                }
             }
 
             // 2026/6/26新增：「加班補休」於送出前先擋下超過當月可用額度的申請（伺服器端也會再次檢查）
@@ -1085,7 +1170,15 @@
                     const el = document.getElementById(id);
                     if (el) { el.value = ""; setFieldError(id, false); }
                 });
+                // 2026/7/20新增：清空 OT 工作項目欄
+                [1,2,3].forEach(i => {
+                    document.getElementById(`ot-work-type-${i}`).value = '';
+                    const inp = document.getElementById(`ot-obligor-${i}`);
+                    inp.value = '';
+                    inp.classList.add('hidden');
+                });
                 unlockSubmitButton();
+                currentHistoryTab = currentFormType === 'leave' ? 'leave' : 'ot';
                 switchPage('history');
             })
             .catch(error => {
