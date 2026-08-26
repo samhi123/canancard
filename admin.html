@@ -2400,15 +2400,25 @@
         }
 
         function loadLateReport() {
-            initLateReportMonth();
-            const yearMonth = document.getElementById('late-month-picker').value;
+            const tbody = document.getElementById('late-report-table-body');
+            const cards = document.getElementById('late-report-cards');
+            try {
+                if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
+                if (cards) cards.innerHTML = `<div class="text-center p-4 text-gray-400 text-sm">載入中...</div>`;
+            } catch(e) {}
+            try {
+            const picker = document.getElementById('late-month-picker');
+            if (picker && !picker.value) {
+                const now = new Date();
+                picker.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+            }
+            const yearMonth = (picker || {}).value || '';
             const branch    = (document.getElementById('late-branch-filter') || {}).value || '';
             const empId     = (document.getElementById('late-emp-filter') || {}).value || '';
-            const tbody     = document.getElementById('late-report-table-body');
-            const cards     = document.getElementById('late-report-cards');
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
-            cards.innerHTML = `<div class="text-center p-4 text-gray-400 text-sm">載入中...</div>`;
-            document.getElementById('late-report-summary-text').textContent = '';
+            if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
+            if (cards) cards.innerHTML = `<div class="text-center p-4 text-gray-400 text-sm">載入中...</div>`;
+            const sumEl = document.getElementById('late-report-summary-text');
+            if (sumEl) sumEl.textContent = '';
 
             let url = SYSTEM_ENV.GAS_WEB_APP_URL + '?action=getLateReport&lineUid=' + encodeURIComponent(currentAdminLineUid) + '&yearMonth=' + encodeURIComponent(yearMonth);
             if (branch) url += '&branch=' + encodeURIComponent(branch);
@@ -2432,9 +2442,13 @@
                 .catch(err => {
                     clearTimeout(lrTimer);
                     const msg = err && err.name === 'AbortError' ? '查詢逾時（30秒），GAS 可能尚未部署或資料量過大' : '連線失敗，請確認 GAS 已部署並重新整理';
-                    tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">${msg}</td></tr>`;
-                    cards.innerHTML = '';
+                    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">${msg}</td></tr>`;
+                    if (cards) cards.innerHTML = `<div class="text-center p-3 text-red-400 text-sm">${msg}</div>`;
                 });
+            } catch(initErr) {
+                if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">初始化錯誤：${initErr.message}</td></tr>`;
+                if (cards) cards.innerHTML = `<div class="text-center p-3 text-red-400 text-sm">初始化錯誤：${initErr.message}</div>`;
+            }
         }
 
         function renderLateReport(data, yearMonth) {
