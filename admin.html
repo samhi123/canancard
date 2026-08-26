@@ -636,8 +636,14 @@
                 </div>
                 <div class="flex items-center gap-1.5">
                     <label class="text-xs text-gray-500 whitespace-nowrap">所別</label>
-                    <select id="late-branch-filter" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
+                    <select id="late-branch-filter" onchange="updateLateEmpFilter()" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
                         <option value="">全部</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">員工</label>
+                    <select id="late-emp-filter" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[120px]">
+                        <option value="">全部員工</option>
                     </select>
                 </div>
                 <button onclick="loadLateReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
@@ -2359,6 +2365,7 @@
         function copyLiffUrl() { navigator.clipboard.writeText(SYSTEM_ENV.LIFF_URL).then(() => alert("專屬 LIFF 網址已複製！")); }
         // ── 2026/8/26新增：遲到查詢 ──────────────────────────────
         let lateReportData = [];
+        let lateEmpList = []; // 員工清單快取
 
         function initLateReportMonth() {
             const picker = document.getElementById('late-month-picker');
@@ -2368,51 +2375,59 @@
             }
         }
 
-        function populateLateBranchFilter() {
-            const sel = document.getElementById('late-branch-filter');
-            if (sel.options.length > 1) return; // 已填充
-            const branches = new Set();
-            document.querySelectorAll('#hr-table-body tr').forEach(tr => {
-                const cells = tr.querySelectorAll('td');
-                if (cells[2]) branches.add(cells[2].textContent.trim());
-            });
-            // fallback：從 currentAdminBranch 取單一所別
-            if (branches.size === 0 && typeof currentAdminBranch !== 'undefined' && currentAdminBranch) {
-                branches.add(currentAdminBranch);
-            }
-            branches.forEach(b => {
-                if (!b) return;
-                const opt = document.createElement('option');
-                opt.value = b; opt.textContent = b;
-                sel.appendChild(opt);
-            });
-            if (typeof currentAdminBranch !== 'undefined' && currentAdminBranch) {
-                sel.value = currentAdminBranch;
-            }
+        function loadLateReportFilters(callback) {
+            if (lateEmpList.length > 0) { if (callback) callback(); return; }
+            const url = SYSTEM_ENV.GAS_WEB_APP_URL + '?action=getHRProfiles&lineUid=' + encodeURIComponent(currentAdminLineUid) + '&_t=' + Date.now();
+            fetch(url).then(r => r.json()).then(res => {
+                if (res.status !== 'success') return;
+                lateEmpList = (res.data || []).filter(e => e.status === '在職');
+                if (currentAdminBranch) lateEmpList = lateEmpList.filter(e => e.branch === currentAdminBranch);
+
+                // 填充所別
+                const branchSel = document.getElementById('late-branch-filter');
+                branchSel.innerHTML = '<option value="">全部</option>';
+                const branches = [...new Set(lateEmpList.map(e => e.branch).filter(Boolean))].sort();
+                branches.forEach(b => { const o = document.createElement('option'); o.value = b; o.textContent = b; branchSel.appendChild(o); });
+                if (currentAdminBranch) branchSel.value = currentAdminBranch;
+
+                // 填充員工
+                updateLateEmpFilter();
+                if (callback) callback();
+            }).catch(() => { if (callback) callback(); });
+        }
+
+        function updateLateEmpFilter() {
+            const branch = document.getElementById('late-branch-filter').value;
+            const empSel = document.getElementById('late-emp-filter');
+            empSel.innerHTML = '<option value="">全部員工</option>';
+            const filtered = branch ? lateEmpList.filter(e => e.branch === branch) : lateEmpList;
+            filtered.forEach(e => { const o = document.createElement('option'); o.value = e.empId; o.textContent = e.name + '（' + e.empId + '）'; empSel.appendChild(o); });
         }
 
         function loadLateReport() {
             initLateReportMonth();
-            populateLateBranchFilter();
-            const yearMonth = document.getElementById('late-month-picker').value;
-            const branch    = document.getElementById('late-branch-filter').value;
-            const tbody     = document.getElementById('late-report-table-body');
-            const cards     = document.getElementById('late-report-cards');
+            const tbody = document.getElementById('late-report-table-body');
+            const cards = document.getElementById('late-report-cards');
             tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
             cards.innerHTML = `<div class="text-center p-4 text-gray-400 text-sm">載入中...</div>`;
             document.getElementById('late-report-summary-text').textContent = '';
 
-            let url = SYSTEM_ENV.GAS_WEB_APP_URL + '?action=getLateReport&lineUid=' + encodeURIComponent(currentAdminLineUid) + '&yearMonth=' + encodeURIComponent(yearMonth);
-            if (branch) url += '&branch=' + encodeURIComponent(branch);
-
-            fetch(url)
-                .then(r => r.json())
-                .then(res => {
-                    if (res.status !== 'success') { tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">${res.message || '查詢失敗'}</td></tr>`; cards.innerHTML=''; return; }
-                    lateReportData = res.data;
-                    renderLateReport(lateReportData, yearMonth);
-                })
-                .catch(() => { tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">連線失敗</td></tr>`; cards.innerHTML=''; });
+            loadLateReportFilters(function() {
+                const yearMonth = document.getElementById('late-month-picker').value;
+                const branch    = document.getElementById('late-branch-filter').value;
+                const empId     = document.getElementById('late-emp-filter').value;
+                let url = SYSTEM_ENV.GAS_WEB_APP_URL + '?action=getLateReport&lineUid=' + encodeURIComponent(currentAdminLineUid) + '&yearMonth=' + encodeURIComponent(yearMonth);
+                if (branch) url += '&branch=' + encodeURIComponent(branch);
+                if (empId)  url += '&empId='  + encodeURIComponent(empId);
+                fetch(url)
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.status !== 'success') { tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">${res.message || '查詢失敗'}</td></tr>`; cards.innerHTML=''; return; }
+                        lateReportData = res.data;
+                        renderLateReport(lateReportData, yearMonth);
+                    })
+                    .catch(() => { tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">連線失敗</td></tr>`; cards.innerHTML=''; });
+            });
         }
 
         function renderLateReport(data, yearMonth) {
