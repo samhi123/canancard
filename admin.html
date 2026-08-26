@@ -2375,59 +2375,61 @@
             }
         }
 
-        function loadLateReportFilters(callback) {
-            if (lateEmpList.length > 0) { if (callback) callback(); return; }
-            const url = SYSTEM_ENV.GAS_WEB_APP_URL + '?action=getHRProfiles&lineUid=' + encodeURIComponent(currentAdminLineUid) + '&_t=' + Date.now();
-            fetch(url).then(r => r.json()).then(res => {
-                if (res.status !== 'success') return;
-                lateEmpList = (res.data || []).filter(e => e.status === '在職');
-                if (currentAdminBranch) lateEmpList = lateEmpList.filter(e => e.branch === currentAdminBranch);
-
-                // 填充所別
-                const branchSel = document.getElementById('late-branch-filter');
-                branchSel.innerHTML = '<option value="">全部</option>';
-                const branches = [...new Set(lateEmpList.map(e => e.branch).filter(Boolean))].sort();
-                branches.forEach(b => { const o = document.createElement('option'); o.value = b; o.textContent = b; branchSel.appendChild(o); });
-                if (currentAdminBranch) branchSel.value = currentAdminBranch;
-
-                // 填充員工
-                updateLateEmpFilter();
-                if (callback) callback();
-            }).catch(() => { if (callback) callback(); });
-        }
-
         function updateLateEmpFilter() {
             const branch = document.getElementById('late-branch-filter').value;
             const empSel = document.getElementById('late-emp-filter');
+            const prev   = empSel.value;
             empSel.innerHTML = '<option value="">全部員工</option>';
             const filtered = branch ? lateEmpList.filter(e => e.branch === branch) : lateEmpList;
             filtered.forEach(e => { const o = document.createElement('option'); o.value = e.empId; o.textContent = e.name + '（' + e.empId + '）'; empSel.appendChild(o); });
+            if (prev) empSel.value = prev;
+        }
+
+        function populateLateFiltersFromData(data) {
+            // 從查詢結果填充所別和員工下拉（不需要額外 API 呼叫）
+            if (lateEmpList.length === 0) {
+                lateEmpList = data.map(e => ({ empId: e.empId, name: e.name, branch: e.branch || '' }));
+            }
+            const branchSel = document.getElementById('late-branch-filter');
+            const prevBranch = branchSel.value;
+            branchSel.innerHTML = '<option value="">全部</option>';
+            const branches = [...new Set(data.map(e => e.branch).filter(Boolean))].sort();
+            branches.forEach(b => { const o = document.createElement('option'); o.value = b; o.textContent = b; branchSel.appendChild(o); });
+            if (prevBranch) branchSel.value = prevBranch;
+            updateLateEmpFilter();
         }
 
         function loadLateReport() {
             initLateReportMonth();
-            const tbody = document.getElementById('late-report-table-body');
-            const cards = document.getElementById('late-report-cards');
+            const yearMonth = document.getElementById('late-month-picker').value;
+            const branch    = document.getElementById('late-branch-filter').value;
+            const empId     = document.getElementById('late-emp-filter').value;
+            const tbody     = document.getElementById('late-report-table-body');
+            const cards     = document.getElementById('late-report-cards');
             tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
             cards.innerHTML = `<div class="text-center p-4 text-gray-400 text-sm">載入中...</div>`;
             document.getElementById('late-report-summary-text').textContent = '';
 
-            loadLateReportFilters(function() {
-                const yearMonth = document.getElementById('late-month-picker').value;
-                const branch    = document.getElementById('late-branch-filter').value;
-                const empId     = document.getElementById('late-emp-filter').value;
-                let url = SYSTEM_ENV.GAS_WEB_APP_URL + '?action=getLateReport&lineUid=' + encodeURIComponent(currentAdminLineUid) + '&yearMonth=' + encodeURIComponent(yearMonth);
-                if (branch) url += '&branch=' + encodeURIComponent(branch);
-                if (empId)  url += '&empId='  + encodeURIComponent(empId);
-                fetch(url)
-                    .then(r => r.json())
-                    .then(res => {
-                        if (res.status !== 'success') { tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">${res.message || '查詢失敗'}</td></tr>`; cards.innerHTML=''; return; }
-                        lateReportData = res.data;
-                        renderLateReport(lateReportData, yearMonth);
-                    })
-                    .catch(() => { tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">連線失敗</td></tr>`; cards.innerHTML=''; });
-            });
+            let url = SYSTEM_ENV.GAS_WEB_APP_URL + '?action=getLateReport&lineUid=' + encodeURIComponent(currentAdminLineUid) + '&yearMonth=' + encodeURIComponent(yearMonth);
+            if (branch) url += '&branch=' + encodeURIComponent(branch);
+            if (empId)  url += '&empId='  + encodeURIComponent(empId);
+
+            fetch(url)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status !== 'success') {
+                        tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">${res.message || '查詢失敗'}</td></tr>`;
+                        cards.innerHTML = '';
+                        return;
+                    }
+                    lateReportData = res.data;
+                    populateLateFiltersFromData(res.data); // 結果回來後才填充篩選器
+                    renderLateReport(lateReportData, yearMonth);
+                })
+                .catch(() => {
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">連線失敗，請確認 GAS 已部署</td></tr>`;
+                    cards.innerHTML = '';
+                });
         }
 
         function renderLateReport(data, yearMonth) {
