@@ -88,6 +88,9 @@
             <button onclick="switchTab('reviewed-section'); loadReviewedForms();" id="btn-reviewed-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 <i class="fa-solid fa-clipboard-check mr-1"></i>審核歷史查詢
             </button>
+            <button onclick="switchTab('late-report-section'); loadLateReport();" id="btn-late-report-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
+                <i class="fa-solid fa-clock mr-1"></i>遲到查詢
+            </button>
         </div>
 
         <div id="pending-section" class="tab-content bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
@@ -617,6 +620,60 @@
                     <tbody id="reviewed-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
                 </table>
             </div>
+        <!-- 2026/8/26新增：遲到查詢（統計表＋明細＋CSV匯出） -->
+        <div id="late-report-section" class="tab-content hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-4 md:p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-gray-700">遲到查詢</h2>
+                <button onclick="loadLateReport()" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg font-medium transition-all">
+                    <i class="fa-solid fa-rotate mr-1"></i>重新整理
+                </button>
+            </div>
+            <div class="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-xl">
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">月份</label>
+                    <input type="month" id="late-month-picker" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">所別</label>
+                    <select id="late-branch-filter" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
+                        <option value="">全部</option>
+                    </select>
+                </div>
+                <button onclick="loadLateReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
+                    <i class="fa-solid fa-magnifying-glass mr-1"></i>查詢
+                </button>
+                <button onclick="exportLateReportCSV()" class="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
+                    <i class="fa-solid fa-file-csv mr-1"></i>匯出 CSV
+                </button>
+            </div>
+            <p id="late-report-summary-text" class="text-xs text-gray-400 mb-2"></p>
+            <!-- 手機版卡片 -->
+            <div id="late-report-cards" class="md:hidden space-y-2"></div>
+            <!-- 桌機版表格 -->
+            <div class="hidden md:block w-full overflow-hidden">
+                <table class="w-full text-left border-collapse table-fixed">
+                    <colgroup>
+                        <col style="width:8%">
+                        <col style="width:14%">
+                        <col style="width:10%">
+                        <col style="width:10%">
+                        <col style="width:12%">
+                        <col style="width:8%">
+                    </colgroup>
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-sm font-semibold border-b border-gray-100">
+                            <th class="p-3">工號</th>
+                            <th class="p-3">姓名</th>
+                            <th class="p-3">所別</th>
+                            <th class="p-3 text-center">遲到次數</th>
+                            <th class="p-3 text-center">遲到總分鐘</th>
+                            <th class="p-3 text-center">明細</th>
+                        </tr>
+                    </thead>
+                    <tbody id="late-report-table-body" class="text-gray-700 text-sm divide-y divide-gray-50"></tbody>
+                </table>
+            </div>
+        </div>
         </div>
     </div>
 
@@ -2300,6 +2357,158 @@
 
         function closeHRModal() { document.getElementById('hr-modal').classList.add('hidden'); }
         function copyLiffUrl() { navigator.clipboard.writeText(SYSTEM_ENV.LIFF_URL).then(() => alert("專屬 LIFF 網址已複製！")); }
+        // ── 2026/8/26新增：遲到查詢 ──────────────────────────────
+        let lateReportData = [];
+
+        function initLateReportMonth() {
+            const picker = document.getElementById('late-month-picker');
+            if (!picker.value) {
+                const now = new Date();
+                picker.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+            }
+        }
+
+        function populateLateBranchFilter() {
+            const sel = document.getElementById('late-branch-filter');
+            if (sel.options.length > 1) return; // 已填充
+            const branches = new Set();
+            document.querySelectorAll('#hr-table-body tr').forEach(tr => {
+                const cells = tr.querySelectorAll('td');
+                if (cells[2]) branches.add(cells[2].textContent.trim());
+            });
+            // fallback：從 currentAdminBranch 取單一所別
+            if (branches.size === 0 && typeof currentAdminBranch !== 'undefined' && currentAdminBranch) {
+                branches.add(currentAdminBranch);
+            }
+            branches.forEach(b => {
+                if (!b) return;
+                const opt = document.createElement('option');
+                opt.value = b; opt.textContent = b;
+                sel.appendChild(opt);
+            });
+            if (typeof currentAdminBranch !== 'undefined' && currentAdminBranch) {
+                sel.value = currentAdminBranch;
+            }
+        }
+
+        function loadLateReport() {
+            initLateReportMonth();
+            populateLateBranchFilter();
+            const yearMonth = document.getElementById('late-month-picker').value;
+            const branch    = document.getElementById('late-branch-filter').value;
+            const tbody     = document.getElementById('late-report-table-body');
+            const cards     = document.getElementById('late-report-cards');
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
+            cards.innerHTML = `<div class="text-center p-4 text-gray-400 text-sm">載入中...</div>`;
+            document.getElementById('late-report-summary-text').textContent = '';
+
+            let url = SYSTEM_ENV.GAS_WEB_APP_URL + '?action=getLateReport&adminId=' + encodeURIComponent(currentAdminId) + '&yearMonth=' + encodeURIComponent(yearMonth);
+            if (branch) url += '&branch=' + encodeURIComponent(branch);
+
+            fetch(url)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status !== 'success') { tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">${res.message || '查詢失敗'}</td></tr>`; cards.innerHTML=''; return; }
+                    lateReportData = res.data;
+                    renderLateReport(lateReportData, yearMonth);
+                })
+                .catch(() => { tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">連線失敗</td></tr>`; cards.innerHTML=''; });
+        }
+
+        function renderLateReport(data, yearMonth) {
+            const tbody = document.getElementById('late-report-table-body');
+            const cards = document.getElementById('late-report-cards');
+            const summaryEl = document.getElementById('late-report-summary-text');
+            tbody.innerHTML = ''; cards.innerHTML = '';
+
+            const lateEmps = data.filter(e => e.lateDays > 0);
+            summaryEl.textContent = `共 ${data.length} 人，其中 ${lateEmps.length} 人有遲到記錄`;
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">本月無記錄</td></tr>`;
+                return;
+            }
+
+            data.forEach(emp => {
+                const detailId = 'lr-detail-' + emp.empId;
+                // 桌機：統計列
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50';
+                tr.innerHTML = `
+                    <td class="p-3 text-xs text-gray-500">${emp.empId}</td>
+                    <td class="p-3 font-medium">${emp.name}</td>
+                    <td class="p-3 text-gray-500">${emp.branch || '-'}</td>
+                    <td class="p-3 text-center ${emp.lateDays > 0 ? 'text-red-500 font-bold' : 'text-gray-400'}">${emp.lateDays}</td>
+                    <td class="p-3 text-center ${emp.totalLateMinutes > 0 ? 'text-red-500 font-bold' : 'text-gray-400'}">${emp.totalLateMinutes}</td>
+                    <td class="p-3 text-center">${emp.lateDays > 0 ? `<button onclick="toggleLateDetail('${emp.empId}')" class="text-xs text-indigo-600 hover:underline">展開</button>` : '-'}</td>`;
+                tbody.appendChild(tr);
+
+                // 桌機：明細列（預設隱藏）
+                if (emp.details && emp.details.length > 0) {
+                    const detailTr = document.createElement('tr');
+                    detailTr.id = detailId;
+                    detailTr.className = 'hidden bg-indigo-50';
+                    const detailRows = emp.details.map(d =>
+                        `<tr class="text-xs text-gray-600"><td class="pl-6 py-1">${d.date}</td><td>${d.shift}</td><td>${d.clockIn}</td><td>基準 ${d.base}</td><td class="text-red-500 font-semibold">+${d.lateMinutes} 分鐘</td></tr>`
+                    ).join('');
+                    detailTr.innerHTML = `<td colspan="6" class="p-0"><table class="w-full text-sm"><thead><tr class="text-xs text-gray-400 bg-indigo-100"><th class="pl-6 py-1 text-left">日期</th><th class="text-left">班別</th><th class="text-left">打卡時間</th><th class="text-left">基準</th><th class="text-left">遲到</th></tr></thead><tbody>${detailRows}</tbody></table></td>`;
+                    tbody.appendChild(detailTr);
+                }
+
+                // 手機：卡片
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-xl border border-gray-100 shadow-sm p-3';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="font-medium text-gray-800">${emp.name}</span>
+                            <span class="text-xs text-gray-400 ml-2">${emp.empId}</span>
+                            ${emp.branch ? `<span class="ml-1 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">${emp.branch}</span>` : ''}
+                        </div>
+                        ${emp.lateDays > 0 ? `<span class="text-xs bg-red-100 text-red-600 font-bold px-2 py-0.5 rounded-full">遲到 ${emp.lateDays} 次</span>` : `<span class="text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">準時</span>`}
+                    </div>
+                    ${emp.lateDays > 0 ? `
+                    <div class="mt-2 text-xs text-gray-500">遲到總計 <span class="text-red-500 font-bold">${emp.totalLateMinutes} 分鐘</span></div>
+                    <div class="mt-2 space-y-1" id="lr-card-detail-${emp.empId}">
+                        ${emp.details.map(d => `<div class="flex justify-between bg-red-50 rounded px-2 py-1"><span>${d.date} (${d.shift})</span><span class="text-red-500 font-semibold">打卡 ${d.clockIn}，+${d.lateMinutes}分</span></div>`).join('')}
+                    </div>` : ''}`;
+                cards.appendChild(card);
+            });
+        }
+
+        function toggleLateDetail(empId) {
+            const detailTr = document.getElementById('lr-detail-' + empId);
+            if (!detailTr) return;
+            detailTr.classList.toggle('hidden');
+        }
+
+        function exportLateReportCSV() {
+            if (!lateReportData || lateReportData.length === 0) { alert('請先查詢遲到資料'); return; }
+            const yearMonth = document.getElementById('late-month-picker').value || '';
+            let rows = ['﻿工號,姓名,所別,日期,班別,打卡時間,基準時間,遲到分鐘'];
+            lateReportData.forEach(emp => {
+                if (emp.details && emp.details.length > 0) {
+                    emp.details.forEach(d => {
+                        rows.push([emp.empId, emp.name, emp.branch || '', d.date, d.shift, d.clockIn, d.base, d.lateMinutes].join(','));
+                    });
+                } else {
+                    rows.push([emp.empId, emp.name, emp.branch || '', '', '', '', '', 0].join(','));
+                }
+            });
+            // 附上統計摘要
+            rows.push('');
+            rows.push('﻿工號,姓名,所別,遲到次數,遲到總分鐘');
+            lateReportData.forEach(emp => {
+                rows.push([emp.empId, emp.name, emp.branch || '', emp.lateDays, emp.totalLateMinutes].join(','));
+            });
+            const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `遲到查詢_${yearMonth}.csv`;
+            a.click();
+        }
+        // ── 遲到查詢 END ─────────────────────────────────────────
+
         function switchTab(id) {
             document.querySelectorAll('.tab-content').forEach(s => s.classList.add('hidden'));
             document.getElementById(id).classList.remove('hidden');
