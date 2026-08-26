@@ -2401,7 +2401,7 @@
             cards.innerHTML = `<div class="text-center p-4 text-gray-400 text-sm">載入中...</div>`;
             document.getElementById('late-report-summary-text').textContent = '';
 
-            let url = SYSTEM_ENV.GAS_WEB_APP_URL + '?action=getLateReport&adminId=' + encodeURIComponent(currentAdminId) + '&yearMonth=' + encodeURIComponent(yearMonth);
+            let url = SYSTEM_ENV.GAS_WEB_APP_URL + '?action=getLateReport&lineUid=' + encodeURIComponent(currentAdminLineUid) + '&yearMonth=' + encodeURIComponent(yearMonth);
             if (branch) url += '&branch=' + encodeURIComponent(branch);
 
             fetch(url)
