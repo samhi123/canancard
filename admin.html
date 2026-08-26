@@ -2402,8 +2402,8 @@
         function loadLateReport() {
             initLateReportMonth();
             const yearMonth = document.getElementById('late-month-picker').value;
-            const branch    = document.getElementById('late-branch-filter').value;
-            const empId     = document.getElementById('late-emp-filter').value;
+            const branch    = (document.getElementById('late-branch-filter') || {}).value || '';
+            const empId     = (document.getElementById('late-emp-filter') || {}).value || '';
             const tbody     = document.getElementById('late-report-table-body');
             const cards     = document.getElementById('late-report-cards');
             tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
@@ -2414,20 +2414,25 @@
             if (branch) url += '&branch=' + encodeURIComponent(branch);
             if (empId)  url += '&empId='  + encodeURIComponent(empId);
 
-            fetch(url)
+            const lrAbort = new AbortController();
+            const lrTimer = setTimeout(() => lrAbort.abort(), 30000);
+            fetch(url, { signal: lrAbort.signal })
                 .then(r => r.json())
                 .then(res => {
+                    clearTimeout(lrTimer);
                     if (res.status !== 'success') {
-                        tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">${res.message || '查詢失敗'}</td></tr>`;
+                        tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">查詢失敗：${res.message || '未知錯誤'}</td></tr>`;
                         cards.innerHTML = '';
                         return;
                     }
                     lateReportData = res.data;
-                    populateLateFiltersFromData(res.data); // 結果回來後才填充篩選器
+                    populateLateFiltersFromData(res.data);
                     renderLateReport(lateReportData, yearMonth);
                 })
-                .catch(() => {
-                    tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">連線失敗，請確認 GAS 已部署</td></tr>`;
+                .catch(err => {
+                    clearTimeout(lrTimer);
+                    const msg = err && err.name === 'AbortError' ? '查詢逾時（30秒），GAS 可能尚未部署或資料量過大' : '連線失敗，請確認 GAS 已部署並重新整理';
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">${msg}</td></tr>`;
                     cards.innerHTML = '';
                 });
         }
