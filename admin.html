@@ -2425,7 +2425,7 @@
             if (empId)  url += '&empId='  + encodeURIComponent(empId);
 
             const lrAbort = new AbortController();
-            const lrTimer = setTimeout(() => lrAbort.abort(), 30000);
+            const lrTimer = setTimeout(() => lrAbort.abort(), 60000);
             fetch(url, { signal: lrAbort.signal })
                 .then(r => r.json())
                 .then(res => {
@@ -2441,7 +2441,7 @@
                 })
                 .catch(err => {
                     clearTimeout(lrTimer);
-                    const msg = err && err.name === 'AbortError' ? '查詢逾時（30秒），GAS 可能尚未部署或資料量過大' : '連線失敗，請確認 GAS 已部署並重新整理';
+                    const msg = err && err.name === 'AbortError' ? '查詢逾時（60秒），請稍後再試或縮小查詢範圍' : '連線失敗，請確認 GAS 已部署並重新整理';
                     if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-red-400">${msg}</td></tr>`;
                     if (cards) cards.innerHTML = `<div class="text-center p-3 text-red-400 text-sm">${msg}</div>`;
                 });
