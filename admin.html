@@ -79,16 +79,16 @@
             <button onclick="switchTab('payroll-history-section')" id="btn-payroll-history-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 <i class="fa-solid fa-file-invoice-dollar mr-1"></i>薪資歷史查詢
             </button>
-            <button onclick="switchTab('payroll-adjustment-section'); loadPayrollAdjustmentLogs();" id="btn-payroll-adjustment-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
+            <button onclick="switchTab('payroll-adjustment-section')" id="btn-payroll-adjustment-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 <i class="fa-solid fa-clock-rotate-left mr-1"></i>薪資調整紀錄
             </button>
-            <button onclick="switchTab('annual-leave-section'); loadAnnualLeaveQuotas();" id="btn-annual-leave-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
+            <button onclick="switchTab('annual-leave-section')" id="btn-annual-leave-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 <i class="fa-solid fa-umbrella-beach mr-1"></i>特休查詢
             </button>
-            <button onclick="switchTab('reviewed-section'); loadReviewedForms();" id="btn-reviewed-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
+            <button onclick="switchTab('reviewed-section')" id="btn-reviewed-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 <i class="fa-solid fa-clipboard-check mr-1"></i>審核歷史查詢
             </button>
-            <button onclick="switchTab('late-report-section'); loadLateReport();" id="btn-late-report-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
+            <button onclick="switchTab('late-report-section')" id="btn-late-report-section" class="tab-btn text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-all">
                 <i class="fa-solid fa-clock mr-1"></i>遲到查詢
             </button>
         </div>
@@ -1083,12 +1083,12 @@
                         }
 
                         // 初次登入時，等 hrProfilesData 建立後再載入其他區塊（確保 branch 過濾可查到資料）
+                        // 2026/9/10效能優化：歷史出勤(loadAttendanceReports)、特休查詢(loadAnnualLeaveQuotas)
+                        // 改為點擊 tab 時才載入（lazy load），不在啟動時預先載入，以加快開啟速度
                         if (chainLoad) {
                             loadPendingForms();
-                            loadAttendanceReports();
                             loadLeaveSettings();
                             loadOvertimeSettings();
-                            loadAnnualLeaveQuotas();
                             loadPayrollAdjustmentLogs();
                         }
                     }
