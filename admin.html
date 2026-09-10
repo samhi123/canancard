@@ -526,6 +526,9 @@
                         <option value="">全部員工</option>
                     </select>
                 </div>
+                <button onclick="loadAnnualLeaveQuotas()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all">
+                    <i class="fa-solid fa-magnifying-glass mr-1"></i>查詢
+                </button>
             </div>
             <div class="table-container">
                 <table class="w-full text-left border-collapse">
@@ -1757,7 +1760,8 @@
         function updateAleaveEmpFilter() {
             var branch = (document.getElementById('aleave-filter-branch') || {}).value || '';
             _refillEmpSelect('aleave-filter-emp', branch);
-            renderAnnualLeaveTable();
+            // 若資料已載入則同步篩選；否則等使用者按「查詢」
+            if (allAnnualLeaveQuotas && allAnnualLeaveQuotas.length > 0) renderAnnualLeaveTable();
         }
 
         // 2026/9/10新增：審核歷史查詢所別變更時，更新員工下拉並套用篩選
