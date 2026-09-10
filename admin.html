@@ -209,6 +209,12 @@
             <!-- 篩選列 -->
             <div class="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-xl">
                 <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">所別</label>
+                    <select id="report-filter-branch" onchange="updateReportEmpFilter()" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[100px]">
+                        <option value="">全部所別</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-1.5">
                     <label class="text-xs text-gray-500 whitespace-nowrap">員工</label>
                     <select id="report-filter-emp" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[120px]">
                         <option value="">全部員工</option>
@@ -258,6 +264,12 @@
                 <div class="flex items-center gap-1.5">
                     <label class="text-xs text-gray-500 whitespace-nowrap">年月</label>
                     <input type="month" id="payroll-yearMonth" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">所別</label>
+                    <select id="payroll-branch-filter" onchange="updatePayrollEmpFilter()" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[100px]">
+                        <option value="">全部所別</option>
+                    </select>
                 </div>
                 <div class="flex items-center gap-1.5">
                     <label class="text-xs text-gray-500 whitespace-nowrap">員工</label>
@@ -404,6 +416,12 @@
                     <input type="month" id="payhist-filter-yearMonth" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
                 </div>
                 <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">所別</label>
+                    <select id="payhist-filter-branch" onchange="updatePayhistEmpFilter()" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[100px]">
+                        <option value="">全部所別</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-1.5">
                     <label class="text-xs text-gray-500 whitespace-nowrap">員工</label>
                     <select id="payhist-filter-emp" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[120px]">
                         <option value="">全部員工</option>
@@ -453,6 +471,12 @@
                     <input type="month" id="padjlog-filter-yearMonth" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white">
                 </div>
                 <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">所別</label>
+                    <select id="padjlog-filter-branch" onchange="updatePadjlogEmpFilter()" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[100px]">
+                        <option value="">全部所別</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-1.5">
                     <label class="text-xs text-gray-500 whitespace-nowrap">員工</label>
                     <select id="padjlog-filter-emp" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[120px]">
                         <option value="">全部員工</option>
@@ -490,6 +514,12 @@
             </div>
             <p class="text-xs text-gray-400 mb-3">特休天數以「到職日週年制」計算，並以半天（0.5天）為單位顯示；預設列出全部在職員工，亦可從下方選單篩選單一員工查看明細。</p>
             <div class="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-xl">
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">所別</label>
+                    <select id="aleave-filter-branch" onchange="updateAleaveEmpFilter()" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[100px]">
+                        <option value="">全部所別</option>
+                    </select>
+                </div>
                 <div class="flex items-center gap-1.5">
                     <label class="text-xs text-gray-500 whitespace-nowrap">員工</label>
                     <select id="aleave-filter-emp" onchange="renderAnnualLeaveTable()" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[140px]">
@@ -1051,45 +1081,41 @@
                         const payhistEmpSelect   = document.getElementById('payhist-filter-emp');
                         const aleaveEmpSelect    = document.getElementById('aleave-filter-emp');
                         const padjlogEmpSelect   = document.getElementById('padjlog-filter-emp');
-                        const reviewedBranchSel  = document.getElementById('reviewed-filter-branch');
-                        const reviewedEmpSelect  = document.getElementById('reviewed-filter-emp');
-                        const lateBranchSel      = document.getElementById('late-branch-filter');
-                        const lateEmpSel         = document.getElementById('late-emp-filter');
-                        if (reportEmpSelect)   reportEmpSelect.innerHTML   = '<option value="">全部員工</option>';
-                        if (payrollEmpSelect)  payrollEmpSelect.innerHTML  = '<option value="">請選擇員工</option>';
-                        if (payhistEmpSelect)  payhistEmpSelect.innerHTML  = '<option value="">全部員工</option>';
-                        if (aleaveEmpSelect)   aleaveEmpSelect.innerHTML   = '<option value="">全部員工</option>';
-                        if (padjlogEmpSelect)  padjlogEmpSelect.innerHTML  = '<option value="">全部員工</option>';
-                        if (reviewedEmpSelect) reviewedEmpSelect.innerHTML = '<option value="">全部員工</option>';
-                        // 所別選項（審核歷史查詢、遲到查詢）
+                        // 所有所別選單統一填充（2026/9/10：全查詢區塊改為先選所別再選員工）
                         const allBranches = [...new Set(res.data.map(e => e.branch).filter(Boolean))].sort();
-                        if (reviewedBranchSel) {
-                            const prevRB = reviewedBranchSel.value;
-                            reviewedBranchSel.innerHTML = '<option value="">全部所別</option>';
-                            allBranches.forEach(b => { reviewedBranchSel.innerHTML += `<option value="${b}">${b}</option>`; });
-                            if (prevRB) reviewedBranchSel.value = prevRB;
-                        }
+                        var branchSelIds = [
+                            'report-filter-branch', 'payroll-branch-filter',
+                            'payhist-filter-branch', 'padjlog-filter-branch',
+                            'aleave-filter-branch', 'reviewed-filter-branch'
+                        ];
+                        branchSelIds.forEach(function(sid) {
+                            var sel = document.getElementById(sid);
+                            if (!sel) return;
+                            var prev = sel.value;
+                            sel.innerHTML = '<option value="">全部所別</option>';
+                            allBranches.forEach(function(b) { sel.innerHTML += '<option value="' + b + '">' + b + '</option>'; });
+                            if (currentAdminBranch) sel.value = currentAdminBranch;
+                            else if (prev) sel.value = prev;
+                        });
+                        // 遲到查詢所別（選項是「全部」不是「全部所別」）
+                        var lateBranchSel = document.getElementById('late-branch-filter');
                         if (lateBranchSel) {
-                            const prevLB = lateBranchSel.value;
+                            var prevLB = lateBranchSel.value;
                             lateBranchSel.innerHTML = '<option value="">全部</option>';
-                            allBranches.forEach(b => { lateBranchSel.innerHTML += `<option value="${b}">${b}</option>`; });
+                            allBranches.forEach(function(b) { lateBranchSel.innerHTML += '<option value="' + b + '">' + b + '</option>'; });
                             if (currentAdminBranch) lateBranchSel.value = currentAdminBranch;
                             else if (prevLB) lateBranchSel.value = prevLB;
                         }
-                        visible.slice().sort((a, b) => a.empId.localeCompare(b.empId)).forEach(emp => {
-                            const opt = `<option value="${emp.empId}">${emp.name}（${emp.empId}）</option>`;
-                            if (reportEmpSelect)   reportEmpSelect.innerHTML   += opt;
-                            if (payrollEmpSelect)  payrollEmpSelect.innerHTML  += opt;
-                            if (payhistEmpSelect)  payhistEmpSelect.innerHTML  += opt;
-                            if (aleaveEmpSelect)   aleaveEmpSelect.innerHTML   += opt;
-                            if (padjlogEmpSelect)  padjlogEmpSelect.innerHTML  += opt;
-                            if (reviewedEmpSelect) reviewedEmpSelect.innerHTML += opt;
-                        });
-                        // 遲到查詢員工下拉（依所別初始填充）
-                        if (lateEmpSel) {
-                            lateEmpList = res.data.map(e => ({ empId: e.empId, name: e.name, branch: e.branch || '' }));
-                            updateLateEmpFilter();
-                        }
+                        // 各區塊員工下拉委由各自的 updateXxxEmpFilter 處理，確保尊重所別選項
+                        updateReportEmpFilter();
+                        updatePayrollEmpFilter();
+                        updatePayhistEmpFilter();
+                        updatePadjlogEmpFilter();
+                        updateAleaveEmpFilter();
+                        updateReviewedEmpFilter();
+                        // 遲到查詢員工下拉
+                        lateEmpList = res.data.map(function(e) { return { empId: e.empId, name: e.name, branch: e.branch || '' }; });
+                        updateLateEmpFilter();
 
                         // 2026/9/10效能優化：歷史出勤/特休查詢改為 lazy load
                         if (chainLoad) {
@@ -1463,21 +1489,8 @@
                           })
                         : res.data;
 
-                    // 更新員工下拉選單（以同所別的員工檔案為主，而非只看已有打卡紀錄的人）
-                    const empSelect = document.getElementById('report-filter-emp');
-                    const prevEmp = empSelect.value;
-                    const branchEmps = currentAdminBranch
-                        ? hrProfilesData.filter(e => e.branch === currentAdminBranch)
-                        : hrProfilesData;
-                    empSelect.innerHTML = '<option value="">全部員工</option>';
-                    branchEmps
-                        .slice()
-                        .sort((a, b) => a.empId.localeCompare(b.empId))
-                        .forEach(emp => {
-                            empSelect.innerHTML += `<option value="${emp.empId}">${emp.name}（${emp.empId}）</option>`;
-                        });
-                    empSelect.value = prevEmp;
-
+                    // 員工下拉由 updateReportEmpFilter 處理（尊重所別選項）
+                    updateReportEmpFilter();
                     renderReportTable(allAttendanceLogs);
                 }
             });
@@ -1552,11 +1565,17 @@
         }
 
         function applyReportFilter() {
+            const branchVal = document.getElementById('report-filter-branch').value;
             const empId     = document.getElementById('report-filter-emp').value;
             const startVal  = document.getElementById('report-filter-start').value;  // yyyy-MM-dd
             const endVal    = document.getElementById('report-filter-end').value;
 
             const filtered = allAttendanceLogs.filter(log => {
+                // 所別篩選
+                if (branchVal) {
+                    const emp = (hrProfilesData || []).find(e => e.empId === log.empId);
+                    if (!emp || emp.branch !== branchVal) return false;
+                }
                 // 員工篩選
                 if (empId && log.empId !== empId) return false;
                 // 日期篩選：log.date 格式為 "yyyy/MM/dd"
@@ -1571,9 +1590,11 @@
         }
 
         function resetReportFilter() {
+            document.getElementById('report-filter-branch').value = '';
             document.getElementById('report-filter-emp').value   = '';
             document.getElementById('report-filter-start').value = '';
             document.getElementById('report-filter-end').value   = '';
+            updateReportEmpFilter();
             renderReportTable(allAttendanceLogs);
         }
 
@@ -1701,6 +1722,42 @@
                     alert('⚠️ 刪除失敗：' + (res.message || '請稍後再試'));
                 }
             }).catch(() => alert('刪除連線錯誤，請稍後再試。'));
+        }
+
+        // ===================== 2026/9/10：各查詢區所別→員工連動（通用 helper） =====================
+        function _buildEmpOptions(branch, emptyLabel) {
+            var emps = branch ? (hrProfilesData || []).filter(function(e) { return e.branch === branch; }) : (hrProfilesData || []);
+            return { emps: emps.slice().sort(function(a, b) { return a.empId.localeCompare(b.empId); }), emptyLabel: emptyLabel || '全部員工' };
+        }
+        function _refillEmpSelect(selectId, branch, emptyLabel) {
+            var sel = document.getElementById(selectId); if (!sel) return;
+            var prev = sel.value;
+            var r = _buildEmpOptions(branch, emptyLabel);
+            sel.innerHTML = '<option value="">' + r.emptyLabel + '</option>';
+            r.emps.forEach(function(emp) { sel.innerHTML += '<option value="' + emp.empId + '">' + emp.name + '（' + emp.empId + '）</option>'; });
+            if (r.emps.some(function(e) { return e.empId === prev; })) sel.value = prev;
+        }
+
+        function updateReportEmpFilter() {
+            var branch = (document.getElementById('report-filter-branch') || {}).value || '';
+            _refillEmpSelect('report-filter-emp', branch);
+        }
+        function updatePayrollEmpFilter() {
+            var branch = (document.getElementById('payroll-branch-filter') || {}).value || '';
+            _refillEmpSelect('payroll-empId', branch, '請選擇員工');
+        }
+        function updatePayhistEmpFilter() {
+            var branch = (document.getElementById('payhist-filter-branch') || {}).value || '';
+            _refillEmpSelect('payhist-filter-emp', branch);
+        }
+        function updatePadjlogEmpFilter() {
+            var branch = (document.getElementById('padjlog-filter-branch') || {}).value || '';
+            _refillEmpSelect('padjlog-filter-emp', branch);
+        }
+        function updateAleaveEmpFilter() {
+            var branch = (document.getElementById('aleave-filter-branch') || {}).value || '';
+            _refillEmpSelect('aleave-filter-emp', branch);
+            renderAnnualLeaveTable();
         }
 
         // 2026/9/10新增：審核歷史查詢所別變更時，更新員工下拉並套用篩選
