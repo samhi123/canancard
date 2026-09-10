@@ -172,6 +172,15 @@
                     </button>
                 </div>
             </div>
+            <!-- 所別篩選（2026/9/10新增：選擇所別後自動顯示員工） -->
+            <div class="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-xl items-center">
+                <label class="text-xs text-gray-500 whitespace-nowrap">所別</label>
+                <select id="hr-branch-filter" onchange="filterHRByBranch(this.value)"
+                    class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[120px]">
+                    <option value="">請選擇所別</option>
+                </select>
+                <span class="text-xs text-gray-400">選擇所別後自動顯示員工</span>
+            </div>
             <div id="hr-cards" class="md:hidden space-y-2"></div>
             <div class="hidden md:block table-container">
                 <table class="w-full text-left border-collapse">
@@ -515,6 +524,13 @@
                 </button>
             </div>
             <div class="flex flex-wrap gap-2 mb-4 p-3 bg-gray-50 rounded-xl">
+                <!-- 2026/9/10新增：所別先選，再選員工 -->
+                <div class="flex items-center gap-1.5">
+                    <label class="text-xs text-gray-500 whitespace-nowrap">所別</label>
+                    <select id="reviewed-filter-branch" onchange="updateReviewedEmpFilter()" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[100px]">
+                        <option value="">全部所別</option>
+                    </select>
+                </div>
                 <div class="flex items-center gap-1.5">
                     <label class="text-xs text-gray-500 whitespace-nowrap">員工</label>
                     <select id="reviewed-filter-emp" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:border-indigo-400 bg-white min-w-[120px]">
@@ -991,9 +1007,10 @@
                 });
         }
 
+        // 2026/9/10改版：人事檔案改為「先選所別再顯示」，rendering 邏輯拆到 renderHRProfiles()
         function forcedFreshLoadHRProfiles(chainLoad = false) {
-            const tbody    = document.getElementById('hr-table-body');
-            const hrCards  = document.getElementById('hr-cards');
+            const tbody   = document.getElementById('hr-table-body');
+            const hrCards = document.getElementById('hr-cards');
             tbody.innerHTML   = `<tr><td colspan="6" class="text-center p-6 text-gray-400">更新資料中...</td></tr>`;
             hrCards.innerHTML = `<p class="text-center text-gray-400 text-sm py-4">更新資料中...</p>`;
 
@@ -1002,89 +1019,79 @@
                 .then(res => res.json())
                 .then(res => {
                     if (res.status === "success") {
-                        hrProfilesData = res.data; // 全域快取（供其他區塊查詢 branch）
+                        hrProfilesData = res.data;
 
-                        // 依所別過濾（無所別的管理員顯示全部）
+                        // 更新所別篩選器選項
+                        const hrBranchFilter = document.getElementById('hr-branch-filter');
+                        if (hrBranchFilter) {
+                            const prevBranch = hrBranchFilter.value;
+                            const branches = [...new Set(res.data.map(e => e.branch).filter(Boolean))].sort();
+                            hrBranchFilter.innerHTML = '<option value="">請選擇所別</option>';
+                            branches.forEach(b => { hrBranchFilter.innerHTML += `<option value="${b}">${b}</option>`; });
+                            // 固定所別管理員：自動選取並顯示
+                            if (currentAdminBranch) {
+                                hrBranchFilter.value = currentAdminBranch;
+                                renderHRProfiles(res.data.filter(e => e.branch === currentAdminBranch));
+                            } else if (prevBranch) {
+                                // 儲存/刪除後重新載入：保留原本選取的所別
+                                hrBranchFilter.value = prevBranch;
+                                renderHRProfiles(res.data.filter(e => e.branch === prevBranch));
+                            } else {
+                                tbody.innerHTML   = `<tr><td colspan="6" class="text-center p-6 text-gray-400">請先選擇所別</td></tr>`;
+                                hrCards.innerHTML = `<p class="text-center text-gray-400 text-sm py-4">請先選擇所別</p>`;
+                            }
+                        }
+
+                        // 以同所別員工為主，同步更新各區塊員工下拉選單
                         const visible = currentAdminBranch
                             ? res.data.filter(e => e.branch === currentAdminBranch)
                             : res.data;
-
-                        tbody.innerHTML   = "";
-                        hrCards.innerHTML = "";
-                        visible.forEach(emp => {
-                            const statusColor = emp.status === "在職" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
-                            const roleColor   = emp.role === "Admin"  ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-800";
-                            const safeEmpId   = emp.empId.toString().trim();
-
-                            // 桌機表格列
-                            tbody.innerHTML += `
-                                <tr class="hover:bg-gray-50/80 transition-colors">
-                                    <td class="p-3 font-semibold text-gray-800">${emp.name}<br><span class="text-xs text-gray-400 font-mono">${safeEmpId}</span></td>
-                                    <td class="p-3 text-sm text-gray-600">${emp.dept}<br><span class="text-xs text-gray-500">${emp.title}</span>${emp.branch ? `<br><span class="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">${emp.branch}</span>` : ''}</td>
-                                    <td class="p-3 font-mono text-xs text-gray-600">${emp.phone}</td>
-                                    <td class="p-3 font-mono text-xs text-gray-400">${emp.lineUid}</td>
-                                    <td class="p-3 space-y-1">
-                                        <span class="${statusColor} text-xs px-2 py-0.5 rounded-md font-medium block w-fit">${emp.status}</span>
-                                        <span class="${roleColor} text-xs px-2 py-0.5 rounded-md font-medium block w-fit">${emp.role}</span>
-                                    </td>
-                                    <td class="p-3 text-center">
-                                        <button onclick="openHREditModal('${safeEmpId}')" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg text-xs font-medium mr-1">
-                                            <i class="fa-solid fa-user-pen mr-1"></i>編輯
-                                        </button>
-                                        <button onclick="deleteHRProfile('${safeEmpId}', '${emp.name}')" class="text-red-600 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg text-xs font-medium">
-                                            <i class="fa-solid fa-trash-can mr-1"></i>刪除
-                                        </button>
-                                    </td>
-                                </tr>
-                            `;
-
-                            // 手機卡片
-                            hrCards.innerHTML += `
-                                <div class="bg-white border border-gray-100 rounded-xl p-3 shadow-sm">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="font-semibold text-gray-800">${emp.name}</span>
-                                        <span class="font-mono text-xs text-gray-400">${safeEmpId}</span>
-                                    </div>
-                                    <p class="text-xs text-gray-600 mb-0.5">${emp.dept}　${emp.title}${emp.branch ? `　<span class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">${emp.branch}</span>` : ''}</p>
-                                    <p class="font-mono text-xs text-gray-400 mb-1">${emp.phone}</p>
-                                    <div class="flex gap-1.5 mb-2">
-                                        <span class="${statusColor} text-xs px-2 py-0.5 rounded-md font-medium">${emp.status}</span>
-                                        <span class="${roleColor} text-xs px-2 py-0.5 rounded-md font-medium">${emp.role}</span>
-                                    </div>
-                                    <div class="flex gap-2">
-                                        <button onclick="openHREditModal('${safeEmpId}')" class="flex-1 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 py-1.5 rounded-lg text-sm font-medium">
-                                            <i class="fa-solid fa-user-pen mr-1"></i>編輯
-                                        </button>
-                                        <button onclick="deleteHRProfile('${safeEmpId}', '${emp.name}')" class="flex-1 text-red-600 bg-red-50 hover:bg-red-100 py-1.5 rounded-lg text-sm font-medium">
-                                            <i class="fa-solid fa-trash-can mr-1"></i>刪除
-                                        </button>
-                                    </div>
-                                </div>
-                            `;
+                        const reportEmpSelect    = document.getElementById('report-filter-emp');
+                        const payrollEmpSelect   = document.getElementById('payroll-empId');
+                        const payhistEmpSelect   = document.getElementById('payhist-filter-emp');
+                        const aleaveEmpSelect    = document.getElementById('aleave-filter-emp');
+                        const padjlogEmpSelect   = document.getElementById('padjlog-filter-emp');
+                        const reviewedBranchSel  = document.getElementById('reviewed-filter-branch');
+                        const reviewedEmpSelect  = document.getElementById('reviewed-filter-emp');
+                        const lateBranchSel      = document.getElementById('late-branch-filter');
+                        const lateEmpSel         = document.getElementById('late-emp-filter');
+                        if (reportEmpSelect)   reportEmpSelect.innerHTML   = '<option value="">全部員工</option>';
+                        if (payrollEmpSelect)  payrollEmpSelect.innerHTML  = '<option value="">請選擇員工</option>';
+                        if (payhistEmpSelect)  payhistEmpSelect.innerHTML  = '<option value="">全部員工</option>';
+                        if (aleaveEmpSelect)   aleaveEmpSelect.innerHTML   = '<option value="">全部員工</option>';
+                        if (padjlogEmpSelect)  padjlogEmpSelect.innerHTML  = '<option value="">全部員工</option>';
+                        if (reviewedEmpSelect) reviewedEmpSelect.innerHTML = '<option value="">全部員工</option>';
+                        // 所別選項（審核歷史查詢、遲到查詢）
+                        const allBranches = [...new Set(res.data.map(e => e.branch).filter(Boolean))].sort();
+                        if (reviewedBranchSel) {
+                            const prevRB = reviewedBranchSel.value;
+                            reviewedBranchSel.innerHTML = '<option value="">全部所別</option>';
+                            allBranches.forEach(b => { reviewedBranchSel.innerHTML += `<option value="${b}">${b}</option>`; });
+                            if (prevRB) reviewedBranchSel.value = prevRB;
+                        }
+                        if (lateBranchSel) {
+                            const prevLB = lateBranchSel.value;
+                            lateBranchSel.innerHTML = '<option value="">全部</option>';
+                            allBranches.forEach(b => { lateBranchSel.innerHTML += `<option value="${b}">${b}</option>`; });
+                            if (currentAdminBranch) lateBranchSel.value = currentAdminBranch;
+                            else if (prevLB) lateBranchSel.value = prevLB;
+                        }
+                        visible.slice().sort((a, b) => a.empId.localeCompare(b.empId)).forEach(emp => {
+                            const opt = `<option value="${emp.empId}">${emp.name}（${emp.empId}）</option>`;
+                            if (reportEmpSelect)   reportEmpSelect.innerHTML   += opt;
+                            if (payrollEmpSelect)  payrollEmpSelect.innerHTML  += opt;
+                            if (payhistEmpSelect)  payhistEmpSelect.innerHTML  += opt;
+                            if (aleaveEmpSelect)   aleaveEmpSelect.innerHTML   += opt;
+                            if (padjlogEmpSelect)  padjlogEmpSelect.innerHTML  += opt;
+                            if (reviewedEmpSelect) reviewedEmpSelect.innerHTML += opt;
                         });
-
-                        // 同步更新薪資計算/薪資歷史查詢的員工下拉選單（以同所別員工為主）
-                        const payrollEmpSelect = document.getElementById('payroll-empId');
-                        const payhistEmpSelect = document.getElementById('payhist-filter-emp');
-                        const aleaveEmpSelect  = document.getElementById('aleave-filter-emp');
-                        const padjlogEmpSelect = document.getElementById('padjlog-filter-emp');
-                        if (payrollEmpSelect) {
-                            payrollEmpSelect.innerHTML = '<option value="">請選擇員工</option>';
-                            payhistEmpSelect.innerHTML = '<option value="">全部員工</option>';
-                            if (aleaveEmpSelect) aleaveEmpSelect.innerHTML = '<option value="">全部員工</option>';
-                            if (padjlogEmpSelect) padjlogEmpSelect.innerHTML = '<option value="">全部員工</option>';
-                            visible.slice().sort((a, b) => a.empId.localeCompare(b.empId)).forEach(emp => {
-                                const opt = `<option value="${emp.empId}">${emp.name}（${emp.empId}）</option>`;
-                                payrollEmpSelect.innerHTML += opt;
-                                payhistEmpSelect.innerHTML += opt;
-                                if (aleaveEmpSelect) aleaveEmpSelect.innerHTML += opt;
-                                if (padjlogEmpSelect) padjlogEmpSelect.innerHTML += opt;
-                            });
+                        // 遲到查詢員工下拉（依所別初始填充）
+                        if (lateEmpSel) {
+                            lateEmpList = res.data.map(e => ({ empId: e.empId, name: e.name, branch: e.branch || '' }));
+                            updateLateEmpFilter();
                         }
 
-                        // 初次登入時，等 hrProfilesData 建立後再載入其他區塊（確保 branch 過濾可查到資料）
-                        // 2026/9/10效能優化：歷史出勤(loadAttendanceReports)、特休查詢(loadAnnualLeaveQuotas)
-                        // 改為點擊 tab 時才載入（lazy load），不在啟動時預先載入，以加快開啟速度
+                        // 2026/9/10效能優化：歷史出勤/特休查詢改為 lazy load
                         if (chainLoad) {
                             loadPendingForms();
                             loadLeaveSettings();
@@ -1093,6 +1100,78 @@
                         }
                     }
                 });
+        }
+
+        // 渲染人事檔案表格（從 forcedFreshLoadHRProfiles 拆出，供 filterHRByBranch 共用）
+        function renderHRProfiles(emps) {
+            const tbody   = document.getElementById('hr-table-body');
+            const hrCards = document.getElementById('hr-cards');
+            tbody.innerHTML   = "";
+            hrCards.innerHTML = "";
+            if (!emps || emps.length === 0) {
+                tbody.innerHTML   = `<tr><td colspan="6" class="text-center p-6 text-gray-400">此所別無員工資料</td></tr>`;
+                hrCards.innerHTML = `<p class="text-center text-gray-400 text-sm py-4">此所別無員工資料</p>`;
+                return;
+            }
+            emps.forEach(emp => {
+                const statusColor = emp.status === "在職" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
+                const roleColor   = emp.role === "Admin"  ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-800";
+                const safeEmpId   = emp.empId.toString().trim();
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50/80 transition-colors">
+                        <td class="p-3 font-semibold text-gray-800">${emp.name}<br><span class="text-xs text-gray-400 font-mono">${safeEmpId}</span></td>
+                        <td class="p-3 text-sm text-gray-600">${emp.dept}<br><span class="text-xs text-gray-500">${emp.title}</span>${emp.branch ? `<br><span class="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">${emp.branch}</span>` : ''}</td>
+                        <td class="p-3 font-mono text-xs text-gray-600">${emp.phone}</td>
+                        <td class="p-3 font-mono text-xs text-gray-400">${emp.lineUid}</td>
+                        <td class="p-3 space-y-1">
+                            <span class="${statusColor} text-xs px-2 py-0.5 rounded-md font-medium block w-fit">${emp.status}</span>
+                            <span class="${roleColor} text-xs px-2 py-0.5 rounded-md font-medium block w-fit">${emp.role}</span>
+                        </td>
+                        <td class="p-3 text-center">
+                            <button onclick="openHREditModal('${safeEmpId}')" class="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg text-xs font-medium mr-1">
+                                <i class="fa-solid fa-user-pen mr-1"></i>編輯
+                            </button>
+                            <button onclick="deleteHRProfile('${safeEmpId}', '${emp.name}')" class="text-red-600 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg text-xs font-medium">
+                                <i class="fa-solid fa-trash-can mr-1"></i>刪除
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                hrCards.innerHTML += `
+                    <div class="bg-white border border-gray-100 rounded-xl p-3 shadow-sm">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-semibold text-gray-800">${emp.name}</span>
+                            <span class="font-mono text-xs text-gray-400">${safeEmpId}</span>
+                        </div>
+                        <p class="text-xs text-gray-600 mb-0.5">${emp.dept}　${emp.title}${emp.branch ? `　<span class="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">${emp.branch}</span>` : ''}</p>
+                        <p class="font-mono text-xs text-gray-400 mb-1">${emp.phone}</p>
+                        <div class="flex gap-1.5 mb-2">
+                            <span class="${statusColor} text-xs px-2 py-0.5 rounded-md font-medium">${emp.status}</span>
+                            <span class="${roleColor} text-xs px-2 py-0.5 rounded-md font-medium">${emp.role}</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="openHREditModal('${safeEmpId}')" class="flex-1 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 py-1.5 rounded-lg text-sm font-medium">
+                                <i class="fa-solid fa-user-pen mr-1"></i>編輯
+                            </button>
+                            <button onclick="deleteHRProfile('${safeEmpId}', '${emp.name}')" class="flex-1 text-red-600 bg-red-50 hover:bg-red-100 py-1.5 rounded-lg text-sm font-medium">
+                                <i class="fa-solid fa-trash-can mr-1"></i>刪除
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // 所別下拉選單變更時，從快取 hrProfilesData 篩選並重新渲染
+        function filterHRByBranch(branch) {
+            if (!branch) {
+                const tbody   = document.getElementById('hr-table-body');
+                const hrCards = document.getElementById('hr-cards');
+                tbody.innerHTML   = `<tr><td colspan="6" class="text-center p-6 text-gray-400">請先選擇所別</td></tr>`;
+                hrCards.innerHTML = `<p class="text-center text-gray-400 text-sm py-4">請先選擇所別</p>`;
+                return;
+            }
+            renderHRProfiles((hrProfilesData || []).filter(e => e.branch === branch));
         }
 
         function openHREditModal(empId = null) {
@@ -1541,22 +1620,8 @@
                           })
                         : res.data;
 
-                    // 更新員工下拉選單（同所別員工檔案為主）
-                    const empSelect = document.getElementById('reviewed-filter-emp');
-                    const prevEmp = empSelect.value;
-                    const branchEmps = currentAdminBranch
-                        ? hrProfilesData.filter(e => e.branch === currentAdminBranch)
-                        : hrProfilesData;
-                    empSelect.innerHTML = '<option value="">全部員工</option>';
-                    branchEmps
-                        .slice()
-                        .sort((a, b) => a.empId.localeCompare(b.empId))
-                        .forEach(emp => {
-                            empSelect.innerHTML += `<option value="${emp.empId}">${emp.name}（${emp.empId}）</option>`;
-                        });
-                    empSelect.value = prevEmp;
-
-                    renderReviewedTable(allReviewedForms);
+                    // 員工下拉由 updateReviewedEmpFilter 處理（尊重所別選項），内部會呼叫 applyReviewedFilter 重繪
+                    updateReviewedEmpFilter();
                 }
             });
         }
@@ -1638,6 +1703,19 @@
             }).catch(() => alert('刪除連線錯誤，請稍後再試。'));
         }
 
+        // 2026/9/10新增：審核歷史查詢所別變更時，更新員工下拉並套用篩選
+        function updateReviewedEmpFilter() {
+            const branch    = document.getElementById('reviewed-filter-branch').value;
+            const empSelect = document.getElementById('reviewed-filter-emp');
+            const prev      = empSelect.value;
+            const filtered  = branch ? (hrProfilesData || []).filter(e => e.branch === branch) : (hrProfilesData || []);
+            empSelect.innerHTML = '<option value="">全部員工</option>';
+            filtered.slice().sort((a, b) => a.empId.localeCompare(b.empId))
+                .forEach(emp => { empSelect.innerHTML += `<option value="${emp.empId}">${emp.name}（${emp.empId}）</option>`; });
+            empSelect.value = filtered.some(e => e.empId === prev) ? prev : '';
+            applyReviewedFilter();
+        }
+
         function updateReviewedSubTypeOptions() {
             const categoryVal = document.getElementById('reviewed-filter-category').value;
             const subSelect   = document.getElementById('reviewed-filter-subtype');
@@ -1655,6 +1733,7 @@
         }
 
         function applyReviewedFilter() {
+            const branchVal  = document.getElementById('reviewed-filter-branch').value;
             const empId      = document.getElementById('reviewed-filter-emp').value;
             const startVal   = document.getElementById('reviewed-filter-start').value; // yyyy-MM-dd
             const endVal     = document.getElementById('reviewed-filter-end').value;
@@ -1663,6 +1742,10 @@
             const statusVal  = document.getElementById('reviewed-filter-status').value;
 
             const filtered = allReviewedForms.filter(f => {
+                if (branchVal) {
+                    const emp = (hrProfilesData || []).find(e => e.empId === f.empId);
+                    if (!emp || emp.branch !== branchVal) return false;
+                }
                 if (empId && f.empId !== empId) return false;
                 if (categoryVal && f.category !== categoryVal) return false;
                 if (subTypeVal && f.subType !== subTypeVal) return false;
@@ -1678,6 +1761,7 @@
         }
 
         function resetReviewedFilter() {
+            document.getElementById('reviewed-filter-branch').value   = '';
             document.getElementById('reviewed-filter-emp').value      = '';
             document.getElementById('reviewed-filter-start').value    = '';
             document.getElementById('reviewed-filter-end').value      = '';
