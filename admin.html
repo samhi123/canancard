@@ -1481,23 +1481,39 @@
             const cards = document.getElementById('report-cards');
             tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
             cards.innerHTML = `<p class="text-center text-gray-400 text-sm py-4">載入中...</p>`;
-            const url = `${GAS_WEB_APP_URL}?action=getAttendanceReports&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
+            // 將日期與員工 ID 傳給 server，讓 server 先篩選，避免全表回傳（效能優化 2026/9/11）
+            const empId    = document.getElementById('report-filter-emp').value;
+            const startVal = document.getElementById('report-filter-start').value;
+            const endVal   = document.getElementById('report-filter-end').value;
+            var url = `${GAS_WEB_APP_URL}?action=getAttendanceReports&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
+            if (empId)    url += `&empId=${encodeURIComponent(empId)}`;
+            if (startVal) url += `&startDate=${encodeURIComponent(startVal)}`;
+            if (endVal)   url += `&endDate=${encodeURIComponent(endVal)}`;
             fetch(url).then(res => res.json()).then(res => {
                 if (res.status === "success") {
-                    // 依所別過濾後存入全域快取
+                    // 依所別再過濾（所別 filter 仍在前端處理，因需查 hrProfilesData）
                     allAttendanceLogs = currentAdminBranch
                         ? res.data.filter(log => {
                             const emp = hrProfilesData.find(e => e.empId === log.empId);
                             return emp && emp.branch === currentAdminBranch;
                           })
                         : res.data;
-
-                    // 員工下拉由 updateReportEmpFilter 處理（尊重所別選項）
                     updateReportEmpFilter();
-                    // 載入完成後套用目前篩選條件（若使用者已設好篩選再按重新整理，自動呈現篩選結果）
-                    applyReportFilter();
+                    // 套用所別篩選後渲染（日期/員工已由 server 處理）
+                    _renderReportWithBranchFilter();
                 }
             });
+        }
+
+        // 僅套用所別篩選並渲染，不重新呼叫 API（用於 loadAttendanceReports 載入後）
+        function _renderReportWithBranchFilter() {
+            const branchVal = document.getElementById('report-filter-branch').value;
+            if (!branchVal) { renderReportTable(allAttendanceLogs); return; }
+            const filtered = allAttendanceLogs.filter(log => {
+                const emp = (hrProfilesData || []).find(e => e.empId === log.empId);
+                return emp && emp.branch === branchVal;
+            });
+            renderReportTable(filtered);
         }
 
         function formatDateROC(dateStr) {
@@ -1569,30 +1585,9 @@
         }
 
         function applyReportFilter() {
-            // 若資料尚未載入（lazy load），先觸發載入；載完後會自動再呼叫 applyReportFilter
-            if (!allAttendanceLogs.length) { loadAttendanceReports(); return; }
-            const branchVal = document.getElementById('report-filter-branch').value;
-            const empId     = document.getElementById('report-filter-emp').value;
-            const startVal  = document.getElementById('report-filter-start').value;  // yyyy-MM-dd
-            const endVal    = document.getElementById('report-filter-end').value;
-
-            const filtered = allAttendanceLogs.filter(log => {
-                // 所別篩選
-                if (branchVal) {
-                    const emp = (hrProfilesData || []).find(e => e.empId === log.empId);
-                    if (!emp || emp.branch !== branchVal) return false;
-                }
-                // 員工篩選
-                if (empId && log.empId !== empId) return false;
-                // 日期篩選：log.date 格式為 "yyyy/MM/dd"
-                if (startVal || endVal) {
-                    const logDate = (log.date || '').replace(/\//g, '-'); // 轉成 yyyy-MM-dd 比對
-                    if (startVal && logDate < startVal) return false;
-                    if (endVal   && logDate > endVal)   return false;
-                }
-                return true;
-            });
-            renderReportTable(filtered);
+            // 日期與員工由 server 篩選（loadAttendanceReports 負責），所別由前端篩選
+            // 直接觸發重新查詢（帶目前篩選條件送至 server）
+            loadAttendanceReports();
         }
 
         function resetReportFilter() {
@@ -1600,8 +1595,13 @@
             document.getElementById('report-filter-emp').value   = '';
             document.getElementById('report-filter-start').value = '';
             document.getElementById('report-filter-end').value   = '';
+            allAttendanceLogs = [];
             updateReportEmpFilter();
-            renderReportTable(allAttendanceLogs);
+            const tbody = document.getElementById('report-table-body');
+            const cards = document.getElementById('report-cards');
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center p-4 text-gray-400">請設定篩選條件後點擊「篩選」</td></tr>`;
+            cards.innerHTML = `<p class="text-center text-gray-400 text-sm py-4">請設定篩選條件後點擊「篩選」</p>`;
+            document.getElementById('report-count').innerText = '';
         }
 
         function exportReportCSV() {
@@ -1636,21 +1636,45 @@
             const tbody = document.getElementById('reviewed-table-body');
             tbody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-gray-400">載入中...</td></tr>`;
             const includeDeleted = document.getElementById('reviewed-show-deleted')?.checked ? 'true' : 'false';
-            const url = `${GAS_WEB_APP_URL}?action=getReviewedForms&includeDeleted=${includeDeleted}&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
+            // 2026/9/11效能優化：empId + 日期範圍由 server 篩選，避免三張表全撈回前端
+            const empId    = document.getElementById('reviewed-filter-emp').value;
+            const startVal = document.getElementById('reviewed-filter-start').value;
+            const endVal   = document.getElementById('reviewed-filter-end').value;
+            var url = `${GAS_WEB_APP_URL}?action=getReviewedForms&includeDeleted=${includeDeleted}&lineUid=${encodeURIComponent(currentAdminLineUid)}&_t=${new Date().getTime()}`;
+            if (empId)    url += `&empId=${encodeURIComponent(empId)}`;
+            if (startVal) url += `&startDate=${encodeURIComponent(startVal)}`;
+            if (endVal)   url += `&endDate=${encodeURIComponent(endVal)}`;
             fetch(url).then(res => res.json()).then(res => {
                 if (res.status === "success") {
-                    // 依所別過濾（與其他頁籤一致）
+                    // 依 currentAdminBranch 做安全範圍限制（管理員所別隔離）
                     allReviewedForms = currentAdminBranch
                         ? res.data.filter(f => {
                             const emp = hrProfilesData.find(e => e.empId === f.empId);
                             return emp && emp.branch === currentAdminBranch;
                           })
                         : res.data;
-
-                    // 員工下拉由 updateReviewedEmpFilter 處理（尊重所別選項），内部會呼叫 applyReviewedFilter 重繪
-                    updateReviewedEmpFilter();
+                    _renderReviewedFiltered(); // 套用 所別/類別/細分/狀態 客戶端篩選後重繪
                 }
             });
+        }
+
+        // 2026/9/11新增：在已載入的 allReviewedForms 上套用客戶端篩選（類別/細分/狀態/所別下拉）
+        function _renderReviewedFiltered() {
+            const branchVal   = document.getElementById('reviewed-filter-branch').value;
+            const categoryVal = document.getElementById('reviewed-filter-category').value;
+            const subTypeVal  = document.getElementById('reviewed-filter-subtype').value;
+            const statusVal   = document.getElementById('reviewed-filter-status').value;
+            const filtered = allReviewedForms.filter(f => {
+                if (branchVal) {
+                    const emp = (hrProfilesData || []).find(e => e.empId === f.empId);
+                    if (!emp || emp.branch !== branchVal) return false;
+                }
+                if (categoryVal && f.category !== categoryVal) return false;
+                if (subTypeVal  && f.subType  !== subTypeVal)  return false;
+                if (statusVal   && f.status   !== statusVal)   return false;
+                return true;
+            });
+            renderReviewedTable(filtered);
         }
 
         function renderReviewedTable(list) {
@@ -1767,7 +1791,7 @@
             if (allAnnualLeaveQuotas && allAnnualLeaveQuotas.length > 0) renderAnnualLeaveTable();
         }
 
-        // 2026/9/10新增：審核歷史查詢所別變更時，更新員工下拉並套用篩選
+        // 2026/9/10新增：審核歷史查詢所別變更時，更新員工下拉並重繪（不重新拉資料）
         function updateReviewedEmpFilter() {
             const branch    = document.getElementById('reviewed-filter-branch').value;
             const empSelect = document.getElementById('reviewed-filter-emp');
@@ -1777,7 +1801,7 @@
             filtered.slice().sort((a, b) => a.empId.localeCompare(b.empId))
                 .forEach(emp => { empSelect.innerHTML += `<option value="${emp.empId}">${emp.name}（${emp.empId}）</option>`; });
             empSelect.value = filtered.some(e => e.empId === prev) ? prev : '';
-            applyReviewedFilter();
+            _renderReviewedFiltered(); // 不重新拉資料，僅重繪已載入的資料
         }
 
         function updateReviewedSubTypeOptions() {
@@ -1797,31 +1821,9 @@
         }
 
         function applyReviewedFilter() {
-            const branchVal  = document.getElementById('reviewed-filter-branch').value;
-            const empId      = document.getElementById('reviewed-filter-emp').value;
-            const startVal   = document.getElementById('reviewed-filter-start').value; // yyyy-MM-dd
-            const endVal     = document.getElementById('reviewed-filter-end').value;
-            const categoryVal= document.getElementById('reviewed-filter-category').value;
-            const subTypeVal = document.getElementById('reviewed-filter-subtype').value;
-            const statusVal  = document.getElementById('reviewed-filter-status').value;
-
-            const filtered = allReviewedForms.filter(f => {
-                if (branchVal) {
-                    const emp = (hrProfilesData || []).find(e => e.empId === f.empId);
-                    if (!emp || emp.branch !== branchVal) return false;
-                }
-                if (empId && f.empId !== empId) return false;
-                if (categoryVal && f.category !== categoryVal) return false;
-                if (subTypeVal && f.subType !== subTypeVal) return false;
-                if (statusVal && f.status !== statusVal) return false;
-                if (startVal || endVal) {
-                    const formDate = (f.startTime || '').slice(0, 10); // "yyyy-MM-dd HH:mm" 取前10碼
-                    if (startVal && formDate < startVal) return false;
-                    if (endVal   && formDate > endVal)   return false;
-                }
-                return true;
-            });
-            renderReviewedTable(filtered);
+            // 2026/9/11效能優化：empId + 日期由 server 篩選（loadReviewedForms 負責）
+            // 類別/細分/狀態/所別 由 _renderReviewedFiltered 做客戶端篩選
+            loadReviewedForms();
         }
 
         function resetReviewedFilter() {
@@ -1833,13 +1835,16 @@
             document.getElementById('reviewed-filter-subtype').value  = '';
             document.getElementById('reviewed-filter-status').value   = '';
             const showDeleted = document.getElementById('reviewed-show-deleted');
-            if (showDeleted && showDeleted.checked) {
-                showDeleted.checked = false;
-                loadReviewedForms(); // 重新拉資料（排除已刪除）
-                return;
-            }
+            if (showDeleted) showDeleted.checked = false;
             updateReviewedSubTypeOptions();
-            renderReviewedTable(allReviewedForms);
+            allReviewedForms = [];
+            updateReviewedEmpFilter();
+            const tbody = document.getElementById('reviewed-table-body');
+            const cards  = document.getElementById('reviewed-cards');
+            if (tbody) tbody.innerHTML = `<tr><td colspan="8" class="text-center p-4 text-gray-400">請設定篩選條件後點擊「篩選」</td></tr>`;
+            if (cards)  cards.innerHTML = `<p class="text-center p-4 text-gray-400 text-sm">請設定篩選條件後點擊「篩選」</p>`;
+            const countEl = document.getElementById('reviewed-count');
+            if (countEl) countEl.innerText = '';
         }
 
         function exportReviewedCSV() {
