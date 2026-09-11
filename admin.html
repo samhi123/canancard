@@ -1494,7 +1494,8 @@
 
                     // 員工下拉由 updateReportEmpFilter 處理（尊重所別選項）
                     updateReportEmpFilter();
-                    renderReportTable(allAttendanceLogs);
+                    // 載入完成後套用目前篩選條件（若使用者已設好篩選再按重新整理，自動呈現篩選結果）
+                    applyReportFilter();
                 }
             });
         }
@@ -1568,6 +1569,8 @@
         }
 
         function applyReportFilter() {
+            // 若資料尚未載入（lazy load），先觸發載入；載完後會自動再呼叫 applyReportFilter
+            if (!allAttendanceLogs.length) { loadAttendanceReports(); return; }
             const branchVal = document.getElementById('report-filter-branch').value;
             const empId     = document.getElementById('report-filter-emp').value;
             const startVal  = document.getElementById('report-filter-start').value;  // yyyy-MM-dd
